@@ -49,6 +49,8 @@ app/
     leaderboard/
     c/[id]/             detail, overrides, coverage matrix, narrative
     setup/              paste emails, set window + budget, generate tokens
+components/
+  sut/                  the ported prescription component. Design is the spec.
 lib/
   bugKey.ts             answer key + rubric. Single source of truth.
   scoring.ts            Stage 2. Pure functions only.
