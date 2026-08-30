@@ -16199,6 +16199,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                       >
                         <SerialBadge num={i + 1} />
                         <input
+                          key={t}
                           defaultValue={t}
                           className="text-[14px] text-[#0F100F] flex-1 min-w-0 outline-none bg-transparent"
                         />
@@ -16450,6 +16451,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                 {savedDiagnoses.map((d, i) => (
                   <ListRow key={i} serial={i + 1}>
                     <input
+                      key={d}
                       defaultValue={d}
                       className="text-[14px] text-[#0F100F] flex-1 min-w-0 outline-none bg-transparent"
                     />
@@ -16480,6 +16482,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                 {savedDrugHistory.map((d, i) => (
                   <ListRow key={i} serial={i + 1}>
                     <input
+                      key={d}
                       defaultValue={d}
                       className="text-[14px] text-[#0F100F] flex-1 min-w-0 outline-none bg-transparent"
                     />

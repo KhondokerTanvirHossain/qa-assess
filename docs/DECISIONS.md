@@ -653,3 +653,65 @@ A deliberate behavioural change to ported code, permitted under CLAUDE.md §5:
 every defect in the SUT must be one that was planted. Establishes the standing
 rule — inherited defects that fire without candidate interaction get fixed;
 defects requiring candidate interaction are candidates for the bug key.
+
+---
+
+## DR-023: Module vocabulary
+
+**Date:** 2026-08-30 · **Status:** Accepted
+
+**Context**
+`data-module` attributes drive auto-captured module attribution (DR-013) and
+the `Module` type in `bugKey.ts` drives the coverage matrix. Divergent lists
+would make coverage compare two different things.
+
+**Decision**
+One exported `Module` union, seventeen values: `patient`,
+`patient-registration`, `vitals`, `complaints`, `history`, `drug-history`,
+`diagnosis`, `treatment`, `investigation`, `advice`, `follow-up`,
+`clinical-signs`, `test-results`, `templates`, `master-data`, `preview`,
+`toolbar`.
+
+Defined in `lib/sut/modules.ts`, imported by both the SUT and `bugKey.ts`.
+`templates` covers all eight template modals — four Save, four Insert.
+
+**Rejected**
+Free-string `data-module` values. Typos would silently create phantom modules
+in the coverage matrix with no type error.
+
+**Consequences**
+Adding a module means editing one file, and the bug key will not compile until
+its bugs are reassigned. Attribution falls back to the nearest ancestor, then
+the topmost open modal, then `unknown`. `preview` has no DOM presence until the
+preview modal is built.
+
+---
+
+## DR-024: Inherited defects that would collide with a planted bug get fixed
+
+**Date:** 2026-08-30 · **Status:** Accepted — extends DR-022
+
+**Context**
+DR-022 established that inherited defects firing without candidate interaction
+get fixed rather than planted. Brief 6 surfaced a case outside that rule: list
+rows using `defaultValue` with `key={i}` leave stale text after a middle-row
+delete. It requires interaction, so DR-022 would leave it key-eligible.
+
+**Decision**
+Fix it. Extend the rule: an inherited defect is also fixed when it would be
+hard to distinguish from a planted bug in the same module.
+
+The deliberate off-by-one delete planned for Advice and Investigation lives in
+exactly these lists. Two similar-looking defects in one section make matcher
+classification unreliable and give the recruiter no defensible answer when a
+candidate disputes a call.
+
+**Rejected**
+Adopting it into the bug key. Its "correct" behaviour is ambiguous — state is
+already right and only the DOM is stale — so the repro is fragile and the
+expected-result field has no clean answer.
+
+**Consequences**
+Ambiguity in the answer key is worse than a missing bug. The standing rule is
+now: fires without interaction, or collides with a planted bug in the same
+module → fix. Otherwise → key-eligible.
