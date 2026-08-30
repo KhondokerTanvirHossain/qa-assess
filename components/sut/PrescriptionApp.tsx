@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { useSut } from "@/lib/sut/SutProvider";
 import {
   ChevronLeft,
   ChevronRight,
@@ -73,7 +74,7 @@ const complaints: { text: string; remark: string }[] = [];
 // the design handoff (avatar, name, #PT-code, phone). Matched by mobile,
 // code, or name (case-insensitive substring). Age + sex are used when the
 // row is picked — they populate the full v2-style demographic bar.
-type PatientPick = {
+export type PatientPick = {
   initials: string;
   name: string;
   code: string;
@@ -81,7 +82,7 @@ type PatientPick = {
   age: string;
   sex: string;
 };
-const PATIENT_POOL: PatientPick[] = [
+export const PATIENT_POOL: PatientPick[] = [
   { initials: "AI", name: "Aminul Islam",     code: "PT-20260506-4315", phone: "01913711808", age: "32 yrs", sex: "Male" },
   { initials: "AH", name: "Ashraf Hossain",   code: "PT-20260507-3154", phone: "01756860265", age: "45 yrs", sex: "Male" },
   { initials: "HE", name: "Heronmoy Emon",    code: "PT-20260504-8364", phone: "01521204762", age: "28 yrs", sex: "Male" },
@@ -205,7 +206,7 @@ type V2MedicineForm =
   | "enema" | "inhaler" | "drops" | "cream" | "mouthwash"
   | "iv-fluid" | "insulin";
 
-type V2MedicineItem = {
+export type V2MedicineItem = {
   id: string;
   name: string;
   generic?: string;
@@ -332,7 +333,7 @@ const V2_UNIT_OPTIONS: V2OptionItem[] = [
 // follows the standard Bangladeshi prescription convention:
 //   <form-prefix> <brand name> <strength>
 // e.g. "Tab. Napa 500 mg", "Syp. Klaricid DS 250 mg/5ml".
-const MEDICINE_LIBRARY_V2: V2MedicineItem[] = [
+export const MEDICINE_LIBRARY_V2: V2MedicineItem[] = [
   { id: "v2-1",  name: "Tab. Napa 500 mg",                     generic: "Paracetamol",                    form: "tablet",
     schema: ["DOSAGE_UNIT", "FREQUENCY", "MEAL_TIMING", "DURATION", "NOTE"],
     defaults: { DOSAGE_UNIT: "১ ট্যাব", FREQUENCY: "১+০+১", MEAL_TIMING: "খাবারের পরে", DURATION: "৫ দিন",  NOTE: "খাবারের পরে" },
@@ -1020,7 +1021,7 @@ const medications = [
 // Typeahead libraries used by the lower-right + bottom row sections.
 // Saved/displayed lists start empty; doctors pick from these libraries or
 // type free text and press Enter.
-const TEST_LIBRARY = [
+export const TEST_LIBRARY = [
   "Random blood sugar (RBS)",
   "Fasting blood sugar (FBS)",
   "HbA1c",
@@ -1043,7 +1044,7 @@ const TEST_LIBRARY = [
   "Prothrombin time (PT/INR)",
 ];
 
-const DIAGNOSIS_LIBRARY = [
+export const DIAGNOSIS_LIBRARY = [
   "Senile immature cataract",
   "Type 2 Diabetes Mellitus",
   "Essential hypertension",
@@ -1066,8 +1067,9 @@ const DIAGNOSIS_LIBRARY = [
   "Anxiety disorder",
 ];
 
-type AdviceLibEntry = { en: string; bn: string };
-const ADVICE_LIBRARY: AdviceLibEntry[] = [
+export type AdviceLibEntry = { en: string; bn: string };
+export type SavedAdvice = { bn: string; en?: string; showEn: boolean };
+export const ADVICE_LIBRARY: AdviceLibEntry[] = [
   { bn: "স্বাভাবিক সব খাবার খাবেন",                       en: "Maintain a normal diet" },
   { bn: "প্রতিদিন কমপক্ষে ৩০ মিনিট হাঁটাচলা করুন",         en: "Walk at least 30 minutes every day" },
   { bn: "প্রচুর পানি পান করুন (২.৫–৩ লিটার)",             en: "Drink plenty of water (2.5–3 litres daily)" },
@@ -10053,7 +10055,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
 // Picks one saved overall template (Chief / Treatment / Tests / Advice
 // bundled together) and inserts it into the current Rx.
 
-type OverallTemplate = {
+export type OverallTemplate = {
   id: string;
   title: string;
   chief: string[];
@@ -10253,7 +10255,7 @@ function InsertOverallTemplateModal({
 // ── Insert Template (Treatment) Modal ─────────────────────
 
 type MedicineEntry = { name: string; dose: string };
-type TreatmentTemplate = { id: string; title: string; medicines: MedicineEntry[] };
+export type TreatmentTemplate = { id: string; title: string; medicines: MedicineEntry[] };
 
 const MOCK_TREATMENT_TEMPLATES: TreatmentTemplate[] = [
   {
@@ -10492,7 +10494,7 @@ function InsertTreatmentTemplateModal({
 
 // ── Insert Template (Test) Modal ──────────────────────────
 
-type TestTemplate = {
+export type TestTemplate = {
   id: string;
   title: string;
   tests: string[];
@@ -13567,7 +13569,7 @@ function ManageDiagnosisModal({ onClose }: { onClose: () => void }) {
 
 // ── Insert Template (Advice) Modal ────────────────────────
 
-type AdviceTemplate = {
+export type AdviceTemplate = {
   id: string;
   title: string;
   advices: string[];
@@ -14556,10 +14558,12 @@ function GateDropdown({
 
 function NewPatientModal({
   initialQuery,
+  patients,
   onClose,
   onAdd,
 }: {
   initialQuery: string;
+  patients: PatientPick[];
   onClose: () => void;
   onAdd: (p: PatientPick) => void;
 }) {
@@ -14578,10 +14582,10 @@ function NewPatientModal({
   const mobileMatches = useMemo(() => {
     const q = fMobileId.trim().toLowerCase();
     if (q.length === 0) return [] as PatientPick[];
-    return PATIENT_POOL.filter(
+    return patients.filter(
       (p) => p.phone.includes(q) || p.code.toLowerCase().includes(q),
     );
-  }, [fMobileId]);
+  }, [fMobileId, patients]);
   // Keyboard navigation across the panel: index 0 is the fixed "add another
   // patient" row, indexes 1..n are the matching patients. Defaults to the
   // fixed row so Enter registers a new patient unless the doctor navigates.
@@ -15147,12 +15151,15 @@ function NewPatientModal({
 }
 
 // ── Main Page ──────────────────────────────────────────────
-export default function PrescriptionApp() {
+export default function PrescriptionApp({ token }: { token: string }) {
   const router = useRouter();
+  // Patient pool comes from SUT state; every other section still reads its
+  // module constant and is migrated in a later brief.
+  const { state: sutState, setState: setSutState } = useSut();
+  void token;
   const [savedComplaints, setSavedComplaints] = useState<typeof complaints>([]);
   const [savedMedications, setSavedMedications] = useState<typeof medications>([]);
   const [savedTests, setSavedTests] = useState<string[]>([]);
-  type SavedAdvice = { bn: string; en?: string; showEn: boolean };
   const [savedAdvice, setSavedAdvice] = useState<SavedAdvice[]>([]);
   const [savedDiagnoses, setSavedDiagnoses] = useState<string[]>([]);
   const [savedDrugHistory, setSavedDrugHistory] = useState<string[]>([]);
@@ -15249,13 +15256,13 @@ export default function PrescriptionApp() {
   const filteredPatients = useMemo(() => {
     const q = demoSearch.trim().toLowerCase();
     if (q.length === 0) return [] as PatientPick[];
-    return PATIENT_POOL.filter(
+    return sutState.patients.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.code.toLowerCase().includes(q) ||
         p.phone.includes(q),
     );
-  }, [demoSearch]);
+  }, [demoSearch, sutState.patients]);
   // Reset highlight whenever the result list changes or the panel reopens.
   useEffect(() => { setDemoHighlight(0); }, [demoSearch, demoSearchOpen]);
   const [visit, setVisit] = useState("");
@@ -15634,8 +15641,20 @@ export default function PrescriptionApp() {
         {newPatientOpen && (
           <NewPatientModal
             initialQuery={demoSearch}
+            patients={sutState.patients}
             onClose={() => setNewPatientOpen(false)}
-            onAdd={(p) => { selectPatient(p); setNewPatientOpen(false); }}
+            onAdd={(p) => {
+              // onAdd fires both for a newly registered patient and for an
+              // existing one picked from the duplicate-check dropdown, so only
+              // append when the code is not already in the pool.
+              setSutState((prev) =>
+                prev.patients.some((x) => x.code === p.code)
+                  ? prev
+                  : { ...prev, patients: [p, ...prev.patients] },
+              );
+              selectPatient(p);
+              setNewPatientOpen(false);
+            }}
           />
         )}
 

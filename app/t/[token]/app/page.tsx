@@ -1,4 +1,5 @@
 import PrescriptionApp from "@/components/sut/PrescriptionApp";
+import { SutProvider } from "@/lib/sut/SutProvider";
 
 export default async function Page({
   params,
@@ -6,5 +7,9 @@ export default async function Page({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  return <PrescriptionApp />;
+  return (
+    <SutProvider token={token}>
+      <PrescriptionApp token={token} />
+    </SutProvider>
+  );
 }
