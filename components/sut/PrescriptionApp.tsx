@@ -1105,6 +1105,12 @@ const DRUG_HISTORY_LIBRARY = [
   "Inhaler Salbutamol",
 ];
 
+// Stable empty arrays for the draft-backed section accessors. Inline []
+// literals would produce a new reference on every render.
+const EMPTY_COMPLAINTS: { text: string; remark: string }[] = [];
+const EMPTY_STRINGS: string[] = [];
+const EMPTY_ADVICE: SavedAdvice[] = [];
+
 const vitals = {
   weight: "",
   height: "",
@@ -6482,7 +6488,7 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="test-results" className="fixed inset-0 z-[60] flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <div className="w-[1000px] bg-white rounded-[10px] overflow-hidden shadow-2xl flex flex-col" style={{ height: "600px" }}>
 
         {/* Header */}
@@ -6957,7 +6963,7 @@ function ClinicalSignsModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="clinical-signs" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <div className="w-[1078px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: "748px" }}>
 
         {/* Header */}
@@ -7543,7 +7549,7 @@ function ManageAdviceModal({ onClose }: { onClose: () => void }) {
     : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="master-data" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: scrollbarCss }} />
       <div className="w-[1000px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl relative" style={{ height: 640 }}>
 
@@ -8141,7 +8147,7 @@ function SaveTestTemplateModal({ onClose, onSave }: { onClose: () => void; onSav
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="templates" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: modalCss }} />
       <div className="w-[820px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: 800, maxHeight: "calc(100vh - 32px)" }}>
 
@@ -8483,7 +8489,7 @@ function SaveAdviceTemplateModal({ onClose, onSave }: { onClose: () => void; onS
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="templates" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: modalCss }} />
       <div className="w-[640px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: 640, maxHeight: "calc(100vh - 32px)" }}>
 
@@ -8809,7 +8815,7 @@ function SaveTreatmentTemplateModal({ onClose, onSave }: { onClose: () => void; 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="templates" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: modalCss }} />
       <div className="w-[820px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: 800, maxHeight: "calc(100vh - 32px)" }}>
 
@@ -9918,7 +9924,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="templates" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: modalCss }} />
       <div className="w-[880px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: 720, maxHeight: "calc(100vh - 32px)" }}>
 
@@ -10157,7 +10163,7 @@ function InsertOverallTemplateModal({
   `;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="templates" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: scrollbarCss }} />
       <div className="w-[720px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: 720, maxHeight: "calc(100vh - 32px)" }}>
 
@@ -10370,7 +10376,7 @@ function InsertTreatmentTemplateModal({
   `;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="templates" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: scrollbarCss }} />
       <div className="w-[720px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: 720, maxHeight: "calc(100vh - 32px)" }}>
 
@@ -10576,7 +10582,7 @@ function InsertTestTemplateModal({
   `;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="templates" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: scrollbarCss }} />
       <div className="w-[720px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: 720, maxHeight: "calc(100vh - 32px)" }}>
 
@@ -11272,7 +11278,7 @@ function ManageDrugModal({ onClose }: { onClose: () => void }) {
     v ? <span className="text-[14px] text-[#0F100F] font-semibold">{v}</span> : <span className="text-[14px] text-[#8c9198]">--</span>;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="master-data" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: scrollbarCss }} />
       <div className="w-[1040px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl relative" style={{ height: 680 }}>
 
@@ -12349,7 +12355,7 @@ function ManageTestModal({ onClose }: { onClose: () => void }) {
     v ? <span className="text-[14px] text-[#0F100F] font-semibold">{v}</span> : <span className="text-[14px] text-[#8c9198]">--</span>;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="master-data" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: scrollbarCss }} />
       <div className="w-[1040px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl relative" style={{ height: 680 }}>
 
@@ -13173,7 +13179,7 @@ function ManageDiagnosisModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="master-data" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: scrollbarCss }} />
       <div className="w-[1000px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl relative" style={{ height: 640 }}>
 
@@ -13681,7 +13687,7 @@ function InsertTemplateModal({
   `;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
+    <div data-module="templates" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
       <style dangerouslySetInnerHTML={{ __html: scrollbarCss }} />
       <div className="w-[720px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: 720, maxHeight: "calc(100vh - 32px)" }}>
 
@@ -14165,7 +14171,7 @@ function PatientDetailsModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-[16px]"
+      data-module="patient-registration" className="fixed inset-0 z-[1000] flex items-center justify-center p-[16px]"
       style={{ background: "rgba(15,23,42,0.45)" }}
       onClick={onClose}
     >
@@ -14707,7 +14713,7 @@ function NewPatientModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[1050] flex items-center justify-center p-[20px] font-[DM_Sans] text-[#0F100F]"
+      data-module="patient-registration" className="fixed inset-0 z-[1050] flex items-center justify-center p-[20px] font-[DM_Sans] text-[#0F100F]"
       style={{ background: "rgba(15,23,42,0.35)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)" }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -15165,12 +15171,26 @@ export default function PrescriptionApp({ token }: { token: string }) {
     loadDraftFor,
   } = useSut();
   void token;
-  const [savedComplaints, setSavedComplaints] = useState<typeof complaints>([]);
+  // The six section arrays live on the draft. These accessors keep the
+  // useState signature — value plus a setter taking a value or an updater —
+  // so every existing add / edit / delete call site works unchanged.
+  const savedComplaints = draft?.complaints ?? EMPTY_COMPLAINTS;
+  const setSavedComplaints = (
+    v: typeof complaints | ((p: typeof complaints) => typeof complaints),
+  ) => updateDraft({ complaints: typeof v === "function" ? v(draft?.complaints ?? []) : v });
   const [savedMedications, setSavedMedications] = useState<typeof medications>([]);
-  const [savedTests, setSavedTests] = useState<string[]>([]);
-  const [savedAdvice, setSavedAdvice] = useState<SavedAdvice[]>([]);
-  const [savedDiagnoses, setSavedDiagnoses] = useState<string[]>([]);
-  const [savedDrugHistory, setSavedDrugHistory] = useState<string[]>([]);
+  const savedTests = draft?.tests ?? EMPTY_STRINGS;
+  const setSavedTests = (v: string[] | ((p: string[]) => string[])) =>
+    updateDraft({ tests: typeof v === "function" ? v(draft?.tests ?? []) : v });
+  const savedAdvice = draft?.advice ?? EMPTY_ADVICE;
+  const setSavedAdvice = (v: SavedAdvice[] | ((p: SavedAdvice[]) => SavedAdvice[])) =>
+    updateDraft({ advice: typeof v === "function" ? v(draft?.advice ?? []) : v });
+  const savedDiagnoses = draft?.diagnoses ?? EMPTY_STRINGS;
+  const setSavedDiagnoses = (v: string[] | ((p: string[]) => string[])) =>
+    updateDraft({ diagnoses: typeof v === "function" ? v(draft?.diagnoses ?? []) : v });
+  const savedDrugHistory = draft?.drugHistory ?? EMPTY_STRINGS;
+  const setSavedDrugHistory = (v: string[] | ((p: string[]) => string[])) =>
+    updateDraft({ drugHistory: typeof v === "function" ? v(draft?.drugHistory ?? []) : v });
   const [showClinicalSigns, setShowClinicalSigns] = useState(false);
   // Chief Complaints is split into 3 tabs (Present Complaints / History /
   // Summary) that live in the section header instead of stacking vertically.
@@ -15179,7 +15199,10 @@ export default function PrescriptionApp({ token }: { token: string }) {
   const [noteText, setNoteText] = useState("");
   const [showIntakeV2, setShowIntakeV2] = useState(false);
   const [showHistoryIntake, setShowHistoryIntake] = useState(false);
-  const [savedHistory, setSavedHistory] = useState<{ text: string; remark: string }[]>([]);
+  const savedHistory = draft?.history ?? EMPTY_COMPLAINTS;
+  const setSavedHistory = (
+    v: { text: string; remark: string }[] | ((p: { text: string; remark: string }[]) => { text: string; remark: string }[]),
+  ) => updateDraft({ history: typeof v === "function" ? v(draft?.history ?? []) : v });
   const [historyIntakeState, setHistoryIntakeState] = useState<HistoryIntakeState>(EMPTY_HISTORY_INTAKE);
   const [showTestResults, setShowTestResults] = useState(false);
   const [showManageAdvice, setShowManageAdvice] = useState(false);
@@ -15220,12 +15243,46 @@ export default function PrescriptionApp({ token }: { token: string }) {
   }, []);
   const [followRefTab, setFollowRefTab] = useState<"follow" | "refer">("follow");
   // Follow Up & Refer working state
-  const [followUpMode, setFollowUpMode] = useState<"After" | "On">("After");
-  const [followUpAmount, setFollowUpAmount] = useState<string>("7");
-  const [followUpUnit, setFollowUpUnit] = useState<"Days" | "Weeks" | "Months">("Days");
-  const [followUpDate, setFollowUpDate] = useState<string>("");
+  // Follow-up lives on draft.followUp; refer on draft.referTo. Same accessor
+  // shape as the section arrays so the control props are unchanged.
+  const followUpMode = (draft?.followUp.mode ?? "After") as "After" | "On";
+  const setFollowUpMode = (v: "After" | "On" | ((p: "After" | "On") => "After" | "On")) =>
+    updateDraft({
+      followUp: {
+        ...(draft?.followUp ?? { mode: "After" as const, amount: "7", unit: "Days", date: "" }),
+        mode: typeof v === "function" ? v(followUpMode) : v,
+      },
+    });
+  const followUpAmount = draft?.followUp.amount ?? "7";
+  const setFollowUpAmount = (v: string | ((p: string) => string)) =>
+    updateDraft({
+      followUp: {
+        ...(draft?.followUp ?? { mode: "After" as const, amount: "7", unit: "Days", date: "" }),
+        amount: typeof v === "function" ? v(followUpAmount) : v,
+      },
+    });
+  const followUpUnit = (draft?.followUp.unit ?? "Days") as "Days" | "Weeks" | "Months";
+  const setFollowUpUnit = (
+    v: "Days" | "Weeks" | "Months" | ((p: "Days" | "Weeks" | "Months") => "Days" | "Weeks" | "Months"),
+  ) =>
+    updateDraft({
+      followUp: {
+        ...(draft?.followUp ?? { mode: "After" as const, amount: "7", unit: "Days", date: "" }),
+        unit: typeof v === "function" ? v(followUpUnit) : v,
+      },
+    });
+  const followUpDate = draft?.followUp.date ?? "";
+  const setFollowUpDate = (v: string | ((p: string) => string)) =>
+    updateDraft({
+      followUp: {
+        ...(draft?.followUp ?? { mode: "After" as const, amount: "7", unit: "Days", date: "" }),
+        date: typeof v === "function" ? v(followUpDate) : v,
+      },
+    });
   const [followUpUnitOpen, setFollowUpUnitOpen] = useState(false);
-  const [referToText, setReferToText] = useState<string>("");
+  const referToText = draft?.referTo ?? "";
+  const setReferToText = (v: string | ((p: string) => string)) =>
+    updateDraft({ referTo: typeof v === "function" ? v(referToText) : v });
   const [referToFocused, setReferToFocused] = useState(false);
   const followUpUnitRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -15361,7 +15418,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
       <style dangerouslySetInnerHTML={{ __html: TOOLTIP_CSS }} />
       {/* ═══ TOOLBAR ═══ */}
       <div
-        className="flex items-center justify-between px-[16px] h-[45px] shrink-0"
+        data-module="toolbar" className="flex items-center justify-between px-[16px] h-[45px] shrink-0"
         style={{ background: "#358C11" }}
       >
         {/* Left */}
@@ -15539,7 +15596,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
       </div>
 
       {/* ═══ DEMOGRAPHIC BAR ═══ */}
-      <div className="flex items-center gap-[16px] px-[16px] py-[6px] bg-white shrink-0">
+      <div data-module="patient" className="flex items-center gap-[16px] px-[16px] py-[6px] bg-white shrink-0">
         {/* Search — when no patient is selected, the box is visually
             "highlighted" (white bg, green border, soft green ring) to draw
             the doctor's eye to the next step. No autofocus — the cursor is
@@ -15854,7 +15911,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
               <div className="flex-1 p-[6px]">
                 {/* Present Complaints */}
                 {chiefTab === "complaints" && (
-                  <div className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
+                  <div data-module="complaints" className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
                     {savedComplaints.map((c, i) => (
                       <ListRow key={i} serial={i + 1}>
                         <span className="text-[14px] text-[#0F100F] flex-1 min-w-0 truncate">{c.text}</span>
@@ -15886,7 +15943,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                     from the patient information form. */}
                 {chiefTab === "history" && (
                   <>
-                    <div className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
+                    <div data-module="history" className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
                       {savedHistory.map((h, i) => (
                         <ListRow key={`${h.text}-${i}`}>
                           <span className="text-[13px] text-[#0F100F] flex-1 min-w-0 truncate">{h.text}</span>
@@ -15952,7 +16009,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
             </div>
 
             {/* Physical Findings — bottom 3/8 of left column. */}
-            <div className="flex flex-col min-w-0 border-t border-r border-[#c2c2c2]" style={{ gridColumn: 1, gridRow: 2 }}>
+            <div data-module="vitals" className="flex flex-col min-w-0 border-t border-r border-[#c2c2c2]" style={{ gridColumn: 1, gridRow: 2 }}>
               <SectionHeader
                 title="Physical Findings"
                 actions={
@@ -16040,7 +16097,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
           <div className="contents">
             {/* Treatment — grid col 2 / row 1; height links with Chief
                 Complaints (same grid row). */}
-            <div className="flex flex-col min-w-0" style={{ gridColumn: 2, gridRow: 1 }}>
+            <div data-module="treatment" className="flex flex-col min-w-0" style={{ gridColumn: 2, gridRow: 1 }}>
               <SectionHeader
                 title="Treatment"
                 menuItems={[
@@ -16107,7 +16164,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                 Physical Findings on the left. */}
             <div className="flex min-w-0 border-t border-[#c2c2c2]" style={{ gridColumn: 2, gridRow: 2 }}>
               {/* Test (2/3) */}
-              <div className="w-2/3 flex flex-col border-r border-[#c2c2c2]">
+              <div data-module="investigation" className="w-2/3 flex flex-col border-r border-[#c2c2c2]">
                 <SectionHeader
                   title="Investigation"
                   menuItems={[
@@ -16165,7 +16222,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
               </div>
 
               {/* Advice (1/3) */}
-              <div className="w-1/3 flex flex-col">
+              <div data-module="advice" className="w-1/3 flex flex-col">
                 <SectionHeader
                   title="Advice"
                   menuItems={[
@@ -16377,7 +16434,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
         <div className="flex flex-1 border-t border-[#c2c2c2]">
 
           {/* Diagnosis (40%) */}
-          <div className="w-[40%] flex flex-col border-r border-[#c2c2c2]">
+          <div data-module="diagnosis" className="w-[40%] flex flex-col border-r border-[#c2c2c2]">
             <SectionHeader
               title="Diagnosis"
               menuItems={[
@@ -16416,7 +16473,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
           </div>
 
           {/* Drug History (20%) */}
-          <div className="w-[20%] flex flex-col border-r border-[#c2c2c2]">
+          <div data-module="drug-history" className="w-[20%] flex flex-col border-r border-[#c2c2c2]">
             <SectionHeader title="Drug History" />
             <div className="flex-1 p-[6px]">
               <div className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
@@ -16461,7 +16518,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
           </div>
 
           {/* Follow Up & Refer (20%) */}
-          <div className="w-[20%] flex flex-col">
+          <div data-module="follow-up" className="w-[20%] flex flex-col">
             <SectionHeader title="Follow Up & Refer" />
 
             {/* Compact (≤1399px): single-tab UI — switches between
