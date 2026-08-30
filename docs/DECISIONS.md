@@ -566,3 +566,90 @@ Landing page gains a download link and an explanation of the two sheets, their
 caps, and the Treatment-only scope. Hours-used now covers both bug hunting and
 spreadsheet authoring, so it is no longer a clean measure of time in the SUT —
 read it as total effort.
+
+---
+
+## DR-020: exceljs replaces xlsx; transitive uuid advisory accepted
+
+**Date:** 2026-08-29 · **Status:** Accepted
+
+**Context**
+`xlsx` (SheetJS 0.18.5 on npm) carries an unfixable high-severity advisory —
+prototype pollution and ReDoS, no patched version on the registry. It would
+parse spreadsheets uploaded by candidates, who are by construction people paid
+to probe software.
+
+**Decision**
+Replace with `exceljs` for both TC/AC template generation and parsing. Accept
+its two moderate advisories, both from transitive `uuid <11.1.1`.
+
+**Rejected**
+`npm audit fix --force`. Downgrades exceljs to 3.4.0 — a breaking change to a
+much older library — to avoid an unreachable path.
+
+Pinning uuid via npm overrides. uuid 11 is ESM-first and exceljs is not tested
+against it; risking a runtime break to close an unreachable advisory is a bad
+trade at this scale.
+
+**Consequences**
+`npm audit` reports 2 moderate findings permanently. Do not treat a clean audit
+as a gate. The vulnerable path — uuid v3/v5/v6 with a buffer argument — is not
+reachable from exceljs, which uses v4. Re-evaluate if exceljs ships a release
+that bumps uuid.
+
+---
+
+## DR-021: Substitute icon-maximize.svg; drop icon-report.svg
+
+**Date:** 2026-08-29 · **Status:** Accepted
+
+**Context**
+The design file imports two SVGs from a path five directories up
+(`../../../../../icons/`). Neither came with the file and the source repo is
+not available. `iconMaximize` renders at line 1378; `iconReport` has zero
+references.
+
+**Decision**
+Drop the `iconReport` import entirely. Substitute `icon-maximize.svg` with
+lucide's `Maximize2` glyph, dark stroke, no `currentColor`.
+
+**Rejected**
+Blocking the port until the real asset is sourced. Also rejected: replacing
+the `<img>` with a lucide component, which would require rewriting
+`MaximizeButton`'s hover filter.
+
+**Consequences**
+A deliberate, recorded deviation from design fidelity (CLAUDE.md §4). Low risk:
+renders at 14×14 in a hover button labelled "Expand," and lucide supplies every
+other icon in the file. The real asset can replace
+`public/icons/icon-maximize.svg` later with no code change.
+
+---
+
+## DR-022: Pre-existing hydration error is fixed, not planted
+
+**Date:** 2026-08-29 · **Status:** Accepted
+
+**Context**
+The ported design file throws a hydration mismatch on every page load. Two
+`useState` initializers read `window.innerWidth` directly (lines 2892, 3403),
+so server and client render different branches.
+
+**Decision**
+Fix it as pre-planting cleanup, in Brief 4. Initialize to a server-safe
+default, set the real value in `useEffect`. Line 15228 already implements this
+pattern correctly in the same file.
+
+**Rejected**
+Adding it to the bug key. It fires before any interaction, so it has no module
+attribution and no meaningful tier, and every candidate hits it — a bug
+everyone finds adds nothing to detection while inflating all scores equally.
+
+Leaving it unplanted. It is a legitimate high-severity finding, so a strong
+candidate reports it correctly and takes a false positive for being right.
+
+**Consequences**
+A deliberate behavioural change to ported code, permitted under CLAUDE.md §5:
+every defect in the SUT must be one that was planted. Establishes the standing
+rule — inherited defects that fire without candidate interaction get fixed;
+defects requiring candidate interaction are candidates for the bug key.
