@@ -15155,7 +15155,15 @@ export default function PrescriptionApp({ token }: { token: string }) {
   const router = useRouter();
   // Patient pool comes from SUT state; every other section still reads its
   // module constant and is migrated in a later brief.
-  const { state: sutState, setState: setSutState } = useSut();
+  const {
+    state: sutState,
+    setState: setSutState,
+    draft,
+    isDirty,
+    updateDraft,
+    saveDraft,
+    loadDraftFor,
+  } = useSut();
   void token;
   const [savedComplaints, setSavedComplaints] = useState<typeof complaints>([]);
   const [savedMedications, setSavedMedications] = useState<typeof medications>([]);
@@ -15304,6 +15312,14 @@ export default function PrescriptionApp({ token }: { token: string }) {
 
   // Commit a patient pick — shared by row clicks and Enter-on-highlight.
   const selectPatient = (p: PatientPick) => {
+    // Switching away with unsaved edits warns first. Confirming keeps the
+    // outgoing draft in state per DR-009 — only the uncommitted edits are lost.
+    if (isDirty && patient.id !== "" && patient.id !== p.code) {
+      const ok = window.confirm(
+        "This prescription has unsaved changes. Switch patient and discard them?",
+      );
+      if (!ok) return;
+    }
     setPatient({
       initials: p.initials,
       name: p.name,
@@ -15314,7 +15330,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
     });
     setVisit("Visit 3/3");
     setVisitType("New Visit");
-    setFee("800");
+    loadDraftFor(p.code);
     setDemoSearch("");
     setDemoSearchOpen(false);
     // Drop focus from the search input so the cursor doesn't sit blinking
@@ -15328,6 +15344,18 @@ export default function PrescriptionApp({ token }: { token: string }) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
 
+  // A restored draft repopulates the toolbar fields. Keyed on the draft id so
+  // this runs when a draft is loaded, not on every edit.
+  const loadedDraftId = draft?.id ?? null;
+  useEffect(() => {
+    if (draft === null) return;
+    setFee(draft.fee);
+    if (draft.visitType !== "") setVisitType(draft.visitType);
+    if (draft.date !== "") setPrescriptionDate(draft.date);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadedDraftId]);
+
+
   return (
     <div className="nm-page h-screen flex flex-col font-[DM_Sans] text-[#0F100F] overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: TOOLTIP_CSS }} />
@@ -15340,7 +15368,16 @@ export default function PrescriptionApp({ token }: { token: string }) {
         <div className="flex items-center gap-[8px]">
           {/* Back */}
           <button
-            onClick={() => (window.history.length > 1 ? router.back() : router.push("/"))}
+            onClick={() => {
+              if (isDirty) {
+                const ok = window.confirm(
+                  "This prescription has unsaved changes. Leave and discard them?",
+                );
+                if (!ok) return;
+              }
+              if (window.history.length > 1) router.back();
+              else router.push("/");
+            }}
             className="flex items-center gap-[5px] text-white bg-transparent border-none cursor-pointer p-0"
           >
             <ChevronLeft size={15} />
@@ -15366,7 +15403,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
             <ToolbarDropdown
               value={visitType}
               options={["New Visit", "Follow up", "Report"]}
-              onChange={setVisitType}
+              onChange={(v) => { setVisitType(v); updateDraft({ visitType: v }); }}
               placeholder="Visit type"
             />
           </div>
@@ -15383,7 +15420,11 @@ export default function PrescriptionApp({ token }: { token: string }) {
               type="text"
               inputMode="numeric"
               value={fee}
-              onChange={(e) => setFee(e.target.value.replace(/[^\d]/g, ""))}
+              onChange={(e) => {
+                const next = e.target.value.replace(/[^\d]/g, "");
+                setFee(next);
+                updateDraft({ fee: next });
+              }}
               className="text-[13px] font-medium text-white bg-transparent border-none outline-none p-0 font-[DM_Sans]"
               style={{ width: `${Math.max(2, fee.length || 1)}ch` }}
             />
@@ -15392,7 +15433,10 @@ export default function PrescriptionApp({ token }: { token: string }) {
           <div className="w-px h-[24px] bg-white/20" />
 
           {/* Date — themed calendar dropdown */}
-          <ToolbarDatePicker value={prescriptionDate} onChange={setPrescriptionDate} />
+          <ToolbarDatePicker
+            value={prescriptionDate}
+            onChange={(d) => { setPrescriptionDate(d); updateDraft({ date: d }); }}
+          />
         </div>
 
         {/* Right */}
@@ -15474,7 +15518,16 @@ export default function PrescriptionApp({ token }: { token: string }) {
           <div className="w-px h-[24px] bg-white/20" />
 
           {/* Save & Preview */}
-          <button className="flex items-center gap-[5px] px-[12px] h-[28px] rounded-[6px]" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}>
+          <button
+            onClick={() => {
+              if (draft === null) return;
+              saveDraft();
+              setToast({
+                title: "Prescription saved",
+                description: "Draft stored for this patient.",
+              });
+            }}
+            className="flex items-center gap-[5px] px-[12px] h-[28px] rounded-[6px]" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}>
             <Save size={14} className="text-white" />
             <span className="text-[13px] font-medium text-white">Save</span>
           </button>
@@ -15916,13 +15969,15 @@ export default function PrescriptionApp({ token }: { token: string }) {
                     columns align cleanly. */}
                 <div className="grid grid-cols-4 bg-white rounded-[8px] overflow-hidden" style={{ border: "1px solid #e7ebf0" }}>
                   {[
-                    { label: "Pulse", value: vitals.pulse, unit: "bpm", inputW: 60 },
-                    { label: "B.P.", value: vitals.bp, unit: "mmHg", inputW: 56 },
-                    { label: "Temp.", value: vitals.temperature, unit: "°F", inputW: 56 },
-                    { label: "Resp. R.", value: vitals.rr, unit: "/min", inputW: 56 },
-                    { label: "SpO₂", value: vitals.spo2, unit: "%", inputW: 60 },
-                    { label: "Weight", value: vitals.weight, unit: "kg", inputW: 56 },
-                    { label: "Height", value: vitals.height, unit: "cm", inputW: 56 },
+                    // `field` maps each cell to its Prescription.vitals key. The
+                    // render array's "rr" is the type's "respRate".
+                    { label: "Pulse", field: "pulse" as const, value: vitals.pulse, unit: "bpm", inputW: 60 },
+                    { label: "B.P.", field: "bp" as const, value: vitals.bp, unit: "mmHg", inputW: 56 },
+                    { label: "Temp.", field: "temperature" as const, value: vitals.temperature, unit: "°F", inputW: 56 },
+                    { label: "Resp. R.", field: "respRate" as const, value: vitals.rr, unit: "/min", inputW: 56 },
+                    { label: "SpO₂", field: "spo2" as const, value: vitals.spo2, unit: "%", inputW: 60 },
+                    { label: "Weight", field: "weight" as const, value: vitals.weight, unit: "kg", inputW: 56 },
+                    { label: "Height", field: "height" as const, value: vitals.height, unit: "cm", inputW: 56 },
                   ].map((v, i) => {
                     // Only the col-4 cells sit at the box's right edge (i===3 in
                     // row 1; the blank cell fills col 4 of row 2). Height (i===6) is
@@ -15943,7 +15998,18 @@ export default function PrescriptionApp({ token }: { token: string }) {
                             regardless of label length → parts line up across rows. */}
                         <span className="text-[14px] text-[#064232] min-w-0 truncate pl-[8px]">{v.label}</span>
                         <input
-                          defaultValue={v.value}
+                          value={draft?.vitals[v.field] ?? ""}
+                          onChange={(e) =>
+                            updateDraft({
+                              vitals: {
+                                ...(draft?.vitals ?? {
+                                  pulse: "", bp: "", temperature: "",
+                                  respRate: "", spo2: "", weight: "", height: "",
+                                }),
+                                [v.field]: e.target.value,
+                              },
+                            })
+                          }
                           className="text-[15px] text-[#0F100F] w-full min-w-0 h-full self-stretch text-left outline-none bg-transparent"
                         />
                         <span className="self-stretch flex items-center min-w-0 pl-[4px] pr-[8px]">
@@ -15961,6 +16027,8 @@ export default function PrescriptionApp({ token }: { token: string }) {
                 {/* Notes Textarea */}
                 <textarea
                   placeholder="Describe additional physical findings"
+                  value={draft?.physicalFindingsNote ?? ""}
+                  onChange={(e) => updateDraft({ physicalFindingsNote: e.target.value })}
                   className="demo-field flex-1 min-h-0 bg-white rounded-[8px] px-[16px] py-[12px] text-[15px] text-[#0F100F] outline-none resize-none font-[DM_Sans]"
                 />
               </div>

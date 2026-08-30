@@ -43,6 +43,7 @@ export type Prescription = {
     weight: string;
     height: string;
   };
+  physicalFindingsNote: string;
   complaints: { text: string; remark: string }[];
   history: { text: string; remark: string }[];
   drugHistory: string[];
