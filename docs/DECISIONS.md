@@ -631,14 +631,14 @@ other icon in the file. The real asset can replace
 **Date:** 2026-08-29 · **Status:** Accepted
 
 **Context**
-The ported design file throws a hydration mismatch on every page load. Two
-`useState` initializers read `window.innerWidth` directly (lines 2892, 3403),
-so server and client render different branches.
+The ported design file throws a hydration mismatch on every page load. Five
+`useState` initializers read `window` during render, including
+`isCompactDisplay` at line 15204 — the site React actually reported. Server and
+client render different branches.
 
 **Decision**
-Fix it as pre-planting cleanup, in Brief 4. Initialize to a server-safe
-default, set the real value in `useEffect`. Line 15228 already implements this
-pattern correctly in the same file.
+Fixed as pre-planting cleanup, before bug planting begins. All five sites
+initialize to a server-safe default and set the real value in `useEffect`.
 
 **Rejected**
 Adding it to the bug key. It fires before any interaction, so it has no module
