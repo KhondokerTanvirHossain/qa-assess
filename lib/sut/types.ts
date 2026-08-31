@@ -27,6 +27,10 @@ export type {
   AdviceTemplate,
 };
 
+/** A list row that owns a stable id. Ids are generated on add, live for the
+ *  row's lifetime, and are never derived from content or index (DR-025). */
+export type ListRow = { id: string; text: string };
+
 export type Prescription = {
   id: string;
   patientId: string;
@@ -44,13 +48,13 @@ export type Prescription = {
     height: string;
   };
   physicalFindingsNote: string;
-  complaints: { text: string; remark: string }[];
-  history: { text: string; remark: string }[];
-  drugHistory: string[];
-  diagnoses: string[];
+  complaints: { id: string; text: string; remark: string }[];
+  history: { id: string; text: string; remark: string }[];
+  drugHistory: ListRow[];
+  diagnoses: ListRow[];
   medications: unknown[]; // typed in the medications brief
-  tests: string[];
-  advice: SavedAdvice[];
+  tests: ListRow[];
+  advice: (SavedAdvice & { id: string })[];
   followUp: { mode: "After" | "On"; amount: string; unit: string; date: string };
   referTo: string;
   status: "draft" | "completed";

@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useSut } from "@/lib/sut/SutProvider";
+import type { ListRow as SutListRow } from "@/lib/sut/types";
 import {
   ChevronLeft,
   ChevronRight,
@@ -1107,9 +1108,15 @@ const DRUG_HISTORY_LIBRARY = [
 
 // Stable empty arrays for the draft-backed section accessors. Inline []
 // literals would produce a new reference on every render.
-const EMPTY_COMPLAINTS: { text: string; remark: string }[] = [];
-const EMPTY_STRINGS: string[] = [];
-const EMPTY_ADVICE: SavedAdvice[] = [];
+const EMPTY_COMPLAINTS: { id: string; text: string; remark: string }[] = [];
+const EMPTY_ROWS: SutListRow[] = [];
+const EMPTY_ADVICE: (SavedAdvice & { id: string })[] = [];
+
+// Row ids are generated on add and live for the row's lifetime. Never derived
+// from content or index (DR-025) — a content-derived key remounts the input on
+// every keystroke, and an index key leaves stale text after a delete.
+let rowIdSeq = 0;
+const newRowId = () => `row-${Date.now().toString(36)}-${(rowIdSeq++).toString(36)}`;
 
 const vitals = {
   weight: "",
@@ -15174,22 +15181,24 @@ export default function PrescriptionApp({ token }: { token: string }) {
   // The six section arrays live on the draft. These accessors keep the
   // useState signature — value plus a setter taking a value or an updater —
   // so every existing add / edit / delete call site works unchanged.
+  type ComplaintRow = { id: string; text: string; remark: string };
   const savedComplaints = draft?.complaints ?? EMPTY_COMPLAINTS;
   const setSavedComplaints = (
-    v: typeof complaints | ((p: typeof complaints) => typeof complaints),
+    v: ComplaintRow[] | ((p: ComplaintRow[]) => ComplaintRow[]),
   ) => updateDraft({ complaints: typeof v === "function" ? v(draft?.complaints ?? []) : v });
   const [savedMedications, setSavedMedications] = useState<typeof medications>([]);
-  const savedTests = draft?.tests ?? EMPTY_STRINGS;
-  const setSavedTests = (v: string[] | ((p: string[]) => string[])) =>
+  type AdviceRow = SavedAdvice & { id: string };
+  const savedTests = draft?.tests ?? EMPTY_ROWS;
+  const setSavedTests = (v: SutListRow[] | ((p: SutListRow[]) => SutListRow[])) =>
     updateDraft({ tests: typeof v === "function" ? v(draft?.tests ?? []) : v });
   const savedAdvice = draft?.advice ?? EMPTY_ADVICE;
-  const setSavedAdvice = (v: SavedAdvice[] | ((p: SavedAdvice[]) => SavedAdvice[])) =>
+  const setSavedAdvice = (v: AdviceRow[] | ((p: AdviceRow[]) => AdviceRow[])) =>
     updateDraft({ advice: typeof v === "function" ? v(draft?.advice ?? []) : v });
-  const savedDiagnoses = draft?.diagnoses ?? EMPTY_STRINGS;
-  const setSavedDiagnoses = (v: string[] | ((p: string[]) => string[])) =>
+  const savedDiagnoses = draft?.diagnoses ?? EMPTY_ROWS;
+  const setSavedDiagnoses = (v: SutListRow[] | ((p: SutListRow[]) => SutListRow[])) =>
     updateDraft({ diagnoses: typeof v === "function" ? v(draft?.diagnoses ?? []) : v });
-  const savedDrugHistory = draft?.drugHistory ?? EMPTY_STRINGS;
-  const setSavedDrugHistory = (v: string[] | ((p: string[]) => string[])) =>
+  const savedDrugHistory = draft?.drugHistory ?? EMPTY_ROWS;
+  const setSavedDrugHistory = (v: SutListRow[] | ((p: SutListRow[]) => SutListRow[])) =>
     updateDraft({ drugHistory: typeof v === "function" ? v(draft?.drugHistory ?? []) : v });
   const [showClinicalSigns, setShowClinicalSigns] = useState(false);
   // Chief Complaints is split into 3 tabs (Present Complaints / History /
@@ -15201,7 +15210,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
   const [showHistoryIntake, setShowHistoryIntake] = useState(false);
   const savedHistory = draft?.history ?? EMPTY_COMPLAINTS;
   const setSavedHistory = (
-    v: { text: string; remark: string }[] | ((p: { text: string; remark: string }[]) => { text: string; remark: string }[]),
+    v: ComplaintRow[] | ((p: ComplaintRow[]) => ComplaintRow[]),
   ) => updateDraft({ history: typeof v === "function" ? v(draft?.history ?? []) : v });
   const [historyIntakeState, setHistoryIntakeState] = useState<HistoryIntakeState>(EMPTY_HISTORY_INTAKE);
   const [showTestResults, setShowTestResults] = useState(false);
@@ -15913,7 +15922,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                 {chiefTab === "complaints" && (
                   <div data-module="complaints" className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
                     {savedComplaints.map((c, i) => (
-                      <ListRow key={i} serial={i + 1}>
+                      <ListRow key={c.id} serial={i + 1}>
                         <span className="text-[14px] text-[#0F100F] flex-1 min-w-0 truncate">{c.text}</span>
                         <div className="flex items-center gap-[6px] flex-1 min-w-0">
                           <div className="flex-1 min-w-0">
@@ -15930,7 +15939,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                           <X
                             size={13}
                             className="text-[#8c9198] hover:text-[#dc2626] transition-colors cursor-pointer shrink-0"
-                            onClick={() => setSavedComplaints((p) => p.filter((_, j) => j !== i))}
+                            onClick={() => setSavedComplaints((p) => p.filter((r) => r.id !== c.id))}
                           />
                         </div>
                       </ListRow>
@@ -15945,7 +15954,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                   <>
                     <div data-module="history" className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
                       {savedHistory.map((h, i) => (
-                        <ListRow key={`${h.text}-${i}`}>
+                        <ListRow key={h.id}>
                           <span className="text-[13px] text-[#0F100F] flex-1 min-w-0 truncate">{h.text}</span>
                           <div className="flex items-center gap-[6px] flex-1 min-w-0">
                             <div className="flex-1 min-w-0">
@@ -15960,7 +15969,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                             <X
                               size={13}
                               className="text-[#8c9198] hover:text-[#dc2626] transition-colors cursor-pointer shrink-0"
-                              onClick={() => setSavedHistory((p) => p.filter((_, j) => j !== i))}
+                              onClick={() => setSavedHistory((p) => p.filter((r) => r.id !== h.id))}
                             />
                           </div>
                         </ListRow>
@@ -16194,19 +16203,23 @@ export default function PrescriptionApp({ token }: { token: string }) {
                   <div className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
                     {savedTests.map((t, i) => (
                       <div
-                        key={i}
+                        key={t.id}
                         className="demo-rowfocus flex items-center gap-[6px] px-[6px] h-[30px] bg-white border-b border-[#e7ebf0]"
                       >
                         <SerialBadge num={i + 1} />
                         <input
-                          key={t}
-                          defaultValue={t}
+                          value={t.text}
+                          onChange={(e) =>
+                            setSavedTests((p) =>
+                              p.map((r) => (r.id === t.id ? { ...r, text: e.target.value } : r)),
+                            )
+                          }
                           className="text-[14px] text-[#0F100F] flex-1 min-w-0 outline-none bg-transparent"
                         />
                         <X
                           size={13}
                           className="text-[#8c9198] hover:text-[#dc2626] transition-colors cursor-pointer shrink-0"
-                          onClick={() => setSavedTests((p) => p.filter((_, j) => j !== i))}
+                          onClick={() => setSavedTests((p) => p.filter((r) => r.id !== t.id))}
                         />
                       </div>
                     ))}
@@ -16216,7 +16229,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                       library={TEST_LIBRARY}
                       panelId="tests-typeahead-panel"
                       serialNum={savedTests.length + 1}
-                      onAdd={(v) => setSavedTests((p) => [...p, v])}
+                      onAdd={(v) => setSavedTests((p) => [...p, { id: newRowId(), text: v }])}
                     />
                   </div>
                 </div>
@@ -16258,10 +16271,22 @@ export default function PrescriptionApp({ token }: { token: string }) {
                       const display = showingEn ? enText : a.bn;
                       const renderingBn = /[ঀ-৿]/.test(display);
                       return (
-                        <ListRow key={i} serial={i + 1}>
+                        <ListRow key={a.id} serial={i + 1}>
                           <input
-                            key={display}
-                            defaultValue={display}
+                            value={display}
+                            onChange={(e) =>
+                              setSavedAdvice((p) =>
+                                p.map((r) =>
+                                  r.id === a.id
+                                    // Write back to whichever field is on screen —
+                                    // the row shows `en` when toggled, `bn` otherwise.
+                                    ? showingEn
+                                      ? { ...r, en: e.target.value }
+                                      : { ...r, bn: e.target.value }
+                                    : r,
+                                ),
+                              )
+                            }
                             title={display}
                             className={`text-[14px] text-[#0F100F] flex-1 min-w-0 outline-none bg-transparent ${
                               renderingBn ? "font-[Kalpurush]" : "font-[DM_Sans]"
@@ -16272,7 +16297,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                               <X
                                 size={13}
                                 className="text-[#8c9198] hover:text-[#dc2626] transition-colors cursor-pointer"
-                                onClick={() => setSavedAdvice((p) => p.filter((_, j) => j !== i))}
+                                onClick={() => setSavedAdvice((p) => p.filter((r) => r.id !== a.id))}
                               />
                             </Tooltip>
                           </div>
@@ -16286,7 +16311,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                       library={ADVICE_LIBRARY}
                       panelId="advice-typeahead-panel"
                       font="font-[Kalpurush]"
-                      onAdd={(v, t) => setSavedAdvice((p) => [...p, { bn: v, en: t, showEn: false }])}
+                      onAdd={(v, t) => setSavedAdvice((p) => [...p, { id: newRowId(), bn: v, en: t, showEn: false }])}
                     />
                   </div>
                 </div>
@@ -16308,12 +16333,12 @@ export default function PrescriptionApp({ token }: { token: string }) {
             initial={historyIntakeState}
             onClose={() => setShowHistoryIntake(false)}
             onSubmit={(items, state) => {
-              setSavedHistory(items);
+              setSavedHistory(items.map((it) => ({ id: newRowId(), ...it })));
               setHistoryIntakeState(state);
             }}
           />
         )}
-        {showTestResults && <AddTestResultsModal onClose={() => setShowTestResults(false)} testList={savedTests} />}
+        {showTestResults && <AddTestResultsModal onClose={() => setShowTestResults(false)} testList={savedTests.map((t) => t.text)} />}
         {showManageAdvice && <ManageAdviceModal onClose={() => setShowManageAdvice(false)} />}
         {showSaveAdviceTemplate && (
           <SaveAdviceTemplateModal
@@ -16449,16 +16474,20 @@ export default function PrescriptionApp({ token }: { token: string }) {
             <div className="flex-1 p-[6px]">
               <div className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
                 {savedDiagnoses.map((d, i) => (
-                  <ListRow key={i} serial={i + 1}>
+                  <ListRow key={d.id} serial={i + 1}>
                     <input
-                      key={d}
-                      defaultValue={d}
+                      value={d.text}
+                      onChange={(e) =>
+                        setSavedDiagnoses((p) =>
+                          p.map((r) => (r.id === d.id ? { ...r, text: e.target.value } : r)),
+                        )
+                      }
                       className="text-[14px] text-[#0F100F] flex-1 min-w-0 outline-none bg-transparent"
                     />
                     <X
                       size={13}
                       className="text-[#8c9198] hover:text-[#dc2626] transition-colors cursor-pointer shrink-0"
-                      onClick={() => setSavedDiagnoses((p) => p.filter((_, j) => j !== i))}
+                      onClick={() => setSavedDiagnoses((p) => p.filter((r) => r.id !== d.id))}
                     />
                   </ListRow>
                 ))}
@@ -16468,7 +16497,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                   placeholder="Add diagnosis"
                   library={DIAGNOSIS_LIBRARY}
                   panelId="diagnosis-typeahead-panel"
-                  onAdd={(v) => setSavedDiagnoses((p) => [...p, v])}
+                  onAdd={(v) => setSavedDiagnoses((p) => [...p, { id: newRowId(), text: v }])}
                 />
               </div>
             </div>
@@ -16480,16 +16509,20 @@ export default function PrescriptionApp({ token }: { token: string }) {
             <div className="flex-1 p-[6px]">
               <div className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
                 {savedDrugHistory.map((d, i) => (
-                  <ListRow key={i} serial={i + 1}>
+                  <ListRow key={d.id} serial={i + 1}>
                     <input
-                      key={d}
-                      defaultValue={d}
+                      value={d.text}
+                      onChange={(e) =>
+                        setSavedDrugHistory((p) =>
+                          p.map((r) => (r.id === d.id ? { ...r, text: e.target.value } : r)),
+                        )
+                      }
                       className="text-[14px] text-[#0F100F] flex-1 min-w-0 outline-none bg-transparent"
                     />
                     <X
                       size={13}
                       className="text-[#8c9198] hover:text-[#dc2626] transition-colors cursor-pointer shrink-0"
-                      onClick={() => setSavedDrugHistory((p) => p.filter((_, j) => j !== i))}
+                      onClick={() => setSavedDrugHistory((p) => p.filter((r) => r.id !== d.id))}
                     />
                   </ListRow>
                 ))}
@@ -16499,7 +16532,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                   placeholder="Add drug history"
                   library={DRUG_HISTORY_LIBRARY}
                   panelId="drughistory-typeahead-panel"
-                  onAdd={(v) => setSavedDrugHistory((p) => [...p, v])}
+                  onAdd={(v) => setSavedDrugHistory((p) => [...p, { id: newRowId(), text: v }])}
                 />
               </div>
             </div>

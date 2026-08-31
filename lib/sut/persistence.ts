@@ -8,6 +8,14 @@ import type { SutState } from "./types";
 
 const KEY_PREFIX = "qa-assess:sut:";
 
+// Bumped whenever the persisted shape changes incompatibly. A payload written
+// under a different version is discarded and the caller reseeds — SUT state is
+// disposable per-candidate state (DR-005), so migration is not worth its cost
+// (DR-025). Version 2 introduced stable ids on draft list rows.
+const SCHEMA_VERSION = 2;
+
+type Envelope = { version: number; state: SutState };
+
 function keyFor(token: string): string {
   return `${KEY_PREFIX}${token}`;
 }
@@ -24,7 +32,13 @@ export function load(token: string): SutState | null {
     if (raw === null) return null;
     const parsed = JSON.parse(raw);
     if (parsed === null || typeof parsed !== "object") return null;
-    return parsed as SutState;
+    // Anything without the current version stamp predates the id-bearing list
+    // rows and would crash on read. Discard it; the caller falls back to seed.
+    const env = parsed as Partial<Envelope>;
+    if (env.version !== SCHEMA_VERSION || typeof env.state !== "object" || env.state === null) {
+      return null;
+    }
+    return env.state as SutState;
   } catch {
     return null;
   }
@@ -49,7 +63,8 @@ export function save(token: string, state: SutState): void {
     setTimeout(() => {
       timers.delete(token);
       try {
-        window.localStorage.setItem(keyFor(token), JSON.stringify(state));
+        const envelope: Envelope = { version: SCHEMA_VERSION, state };
+        window.localStorage.setItem(keyFor(token), JSON.stringify(envelope));
       } catch {
         // Quota exceeded or storage blocked — the SUT keeps working from
         // in-memory state. Losing persistence must never break the screen.

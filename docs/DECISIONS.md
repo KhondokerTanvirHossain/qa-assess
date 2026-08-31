@@ -715,3 +715,28 @@ expected-result field has no clean answer.
 Ambiguity in the answer key is worse than a missing bug. The standing rule is
 now: fires without interaction, or collides with a planted bug in the same
 module → fix. Otherwise → key-eligible.
+
+---
+
+## DR-025: Draft list rows carry stable ids
+
+**Date:** 2026-08-30 · **Status:** Accepted
+
+**Context**
+Draft-backed lists stored bare strings and keyed inputs by index, then by
+content after DR-024. Neither survives adding `onChange` — index keys leave
+stale text, content keys remount on every keystroke and drop focus.
+
+**Decision**
+List rows become `{ id, text }` with ids generated on add. Inputs key on id;
+edit and delete both address rows by id, never by index.
+
+**Rejected**
+Keeping bare strings and addressing by index. Simpler shape, but index-based
+edits break under concurrent add/delete and would make the planned off-by-one
+delete bug indistinguishable from a real one.
+
+**Consequences**
+A localStorage payload written before this change is unreadable and is
+discarded on load rather than migrated. Acceptable — the SUT is disposable
+per-candidate state (DR-005), and no candidate has used it yet.
