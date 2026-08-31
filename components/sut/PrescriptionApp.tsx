@@ -8556,7 +8556,7 @@ type FtField = { title: string; descEn: string; descBn: string };
 
 function SaveAdviceTemplateModal({ onClose, onSave, advices }: { onClose: () => void; onSave: (title: string) => void; advices: DraftAdvice[] }) {
   const [templateTitle, setTemplateTitle] = useState("");
-  const canSave = templateTitle.trim() !== "";
+  const canSave = templateTitle.trim() !== "" && advices.length > 0;
 
   const modalCss = `
     .sat-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -14531,6 +14531,110 @@ function gateAgeLabel(amount: string, unit: GateAgeUnit): string {
   return `${amount} days`;
 }
 
+// ── Validation ────────────────────────────────────────────
+// Correct rules, deliberately. Planted bugs are introduced later by removing
+// or loosening specific ones, so this is the baseline the bug key diffs
+// against. Messages state what is wrong and what is expected, in one line.
+
+// Inline field error. Reuses the file's error colour (#dc2626) and the
+// 12px semibold treatment already used for out-of-range values.
+function FieldError({ msg }: { msg: string | null }) {
+  if (!msg) return null;
+  return (
+    <span className="text-[12px] font-semibold" style={{ color: "#dc2626" }}>
+      {msg}
+    </span>
+  );
+}
+
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+// Letters, spaces, hyphens, apostrophes and periods. No digits or symbols.
+const NAME_RE = /^[\p{L} .'-]+$/u;
+const validateName = (v: string): string | null => {
+  if (v.trim() === "") return "Name is required.";
+  if (!NAME_RE.test(v.trim())) return "Letters, spaces, hyphens, apostrophes and periods only.";
+  return null;
+};
+
+// Bangladesh mobile: exactly 11 digits starting 01.
+const validateMobile = (v: string): string | null => {
+  const digits = v.replace(/[^\d]/g, "");
+  if (digits === "") return "Mobile number is required.";
+  if (!/^01\d{9}$/.test(digits)) return "Must be 11 digits starting 01.";
+  return null;
+};
+
+const validateDob = (dob: string): string | null => {
+  if (dob === "") return null;
+  const b = new Date(`${dob}T00:00:00`);
+  if (Number.isNaN(b.getTime())) return "Enter a valid date.";
+  if (b.getTime() > new Date(`${todayISO()}T00:00:00`).getTime()) return "Date of birth cannot be in the future.";
+  return null;
+};
+
+// Age and DOB must agree — the modal auto-fills each from the other, so a
+// mismatch means one was edited afterwards.
+const validateAgeDobAgreement = (
+  amount: string, unit: GateAgeUnit, dob: string,
+): string | null => {
+  if (amount.trim() === "" && dob === "") return "Enter an age or a date of birth.";
+  if (amount.trim() === "" || dob === "") return null;
+  const derived = gateAgeFromDob(dob);
+  if (!derived) return null;
+  if (derived.unit !== unit || derived.amount !== amount.trim()) {
+    return `Age and date of birth disagree — ${dob} gives ${gateAgeLabel(derived.amount, derived.unit)}.`;
+  }
+  return null;
+};
+
+// Vitals. Empty is always allowed; only entered values are checked.
+type VitalRule = { min: number; max: number; unit: string };
+const VITAL_RULES: Record<string, VitalRule> = {
+  pulse: { min: 20, max: 250, unit: "bpm" },
+  temperature: { min: 90, max: 110, unit: "°F" },
+  respRate: { min: 5, max: 60, unit: "/min" },
+  spo2: { min: 50, max: 100, unit: "%" },
+  weight: { min: 0.5, max: 300, unit: "kg" },
+  height: { min: 30, max: 250, unit: "cm" },
+};
+const validateVital = (field: string, raw: string): string | null => {
+  const v = raw.trim();
+  if (v === "") return null;
+  if (field === "bp") {
+    const m = v.match(/^(\d{1,3})\s*\/\s*(\d{1,3})$/);
+    if (!m) return "Enter as systolic/diastolic, e.g. 120/80.";
+    const sys = Number(m[1]), dia = Number(m[2]);
+    if (sys < 50 || sys > 300) return "Systolic must be 50–300 mmHg.";
+    if (dia < 30 || dia > 200) return "Diastolic must be 30–200 mmHg.";
+    if (sys <= dia) return "Systolic must be greater than diastolic.";
+    return null;
+  }
+  const rule = VITAL_RULES[field];
+  if (!rule) return null;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "Enter a number.";
+  if (n < rule.min || n > rule.max) return `Must be ${rule.min}–${rule.max} ${rule.unit}.`;
+  return null;
+};
+
+const validateRxDate = (iso: string): string | null => {
+  if (!iso) return null;
+  if (iso > todayISO()) return "Date cannot be later than today.";
+  return null;
+};
+
+const validateFee = (raw: string): string | null => {
+  if (raw.trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return "Fee must be a number.";
+  if (n < 0) return "Fee cannot be negative.";
+  return null;
+};
+
 const GATE_INPUT_CLS =
   "h-[38px] px-[12px] rounded-[7px] bg-white text-[14px] text-[#0F100F] font-[DM_Sans] outline-none w-full border border-[#e3e6eb] transition-[border-color]";
 
@@ -14836,13 +14940,27 @@ function NewPatientModal({
     if (a) { setFAgeAmount(a.amount); setFAgeUnit(a.unit); }
   };
 
+  // Errors surface on blur or on submit — never on every keystroke.
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const touch = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
+  const showFor = (k: string) => submitted || touched[k] === true;
+
+  const nameErr = validateName(fName);
+  const mobileErr = validateMobile(fMobileId);
+  const dobErr = validateDob(fDob);
+  const ageDobErr = dobErr ? null : validateAgeDobAgreement(fAgeAmount, fAgeUnit, fDob);
+  const genderErr = fGender === "" ? "Select a gender." : null;
+
   const canAdd =
-    fName.trim() !== "" &&
-    fMobileId.trim() !== "" &&
-    fGender !== "" &&
-    (fAgeAmount.trim() !== "" || fDob !== "");
+    nameErr === null &&
+    mobileErr === null &&
+    dobErr === null &&
+    ageDobErr === null &&
+    genderErr === null;
 
   const addNewPatient = () => {
+    setSubmitted(true);
     if (!canAdd) return;
     const words = fName.trim().split(/\s+/);
     const initials = (((words[0]?.[0] ?? "") + (words[1]?.[0] ?? "")).toUpperCase() || "?");
@@ -15029,9 +15147,11 @@ function NewPatientModal({
                     }
                   }}
                   placeholder="1XXXXXXXXX"
+                  onBlur={() => touch("mobile")}
                   className="flex-1 min-w-0 bg-transparent outline-none border-none text-[14px] text-[#0F100F] font-[DM_Sans] p-0"
                 />
               </div>
+              <FieldError msg={showFor("mobile") ? mobileErr : null} />
             </GateField>
             {/* Existing-patient matches — same panel design as the
                 demographic search; a row click selects that patient. */}
@@ -15120,9 +15240,11 @@ function NewPatientModal({
                     type="text"
                     value={fName}
                     onChange={(e) => setFName(e.target.value)}
+                    onBlur={() => touch("name")}
                     placeholder="Patient's full name"
                     className={GATE_INPUT_CLS}
                   />
+                  <FieldError msg={showFor("name") ? nameErr : null} />
                 </GateField>
               </div>
             </div>
@@ -15136,6 +15258,7 @@ function NewPatientModal({
                     inputMode="numeric"
                     value={fAgeAmount}
                     onChange={(e) => handleAgeAmount(e.target.value)}
+                    onBlur={() => touch("age")}
                     placeholder="0"
                     className="flex-1 min-w-0 bg-transparent outline-none border-none text-[14px] text-[#0F100F] font-[DM_Sans] p-0"
                   />
@@ -15157,9 +15280,11 @@ function NewPatientModal({
                     type="date"
                     value={fDob}
                     onChange={(e) => handleDob(e.target.value)}
+                    onBlur={() => touch("dob")}
                     className={GATE_INPUT_CLS}
                     style={{ colorScheme: "light" }}
                   />
+                  <FieldError msg={showFor("dob") || showFor("age") ? (dobErr ?? ageDobErr) : null} />
                 </GateField>
               </div>
             </div>
@@ -15614,6 +15739,39 @@ export default function PrescriptionApp({ token }: { token: string }) {
   // reuses the dimming the no-patient gate already applies to the same
   // wrapper, so no new disabled styling is introduced.
   const [showPreview, setShowPreview] = useState(false);
+  // Vitals validate on blur, never mid-typing. Out-of-range values are shown
+  // inline beneath the grid and never block Save.
+  const [vitalsTouched, setVitalsTouched] = useState<Record<string, boolean>>({});
+  // Header + completion gates. Save is never blocked (a draft may be
+  // incomplete); only Preview & Complete gates.
+  const [headerTouched, setHeaderTouched] = useState<Record<string, boolean>>({});
+  const [completeAttempted, setCompleteAttempted] = useState(false);
+  // A medicine with no dosage in its first phase is incomplete.
+  const incompleteMeds = useMemo(
+    () =>
+      (draft?.medications ?? []).filter(
+        (m) => m.medicine.trim() !== "" && (m.phases[0]?.DOSAGE_UNIT ?? "").trim() === "" && m.typeText.trim() === "",
+      ),
+    [draft?.medications],
+  );
+  const completeBlockers = useMemo(() => {
+    const out: string[] = [];
+    if ((draft?.diagnoses ?? []).length === 0) out.push("Add at least one diagnosis.");
+    if ((draft?.medications ?? []).length === 0) out.push("Add at least one medication.");
+    return out;
+  }, [draft?.diagnoses, draft?.medications]);
+  const vitalErrors = useMemo(() => {
+    const v = draft?.vitals;
+    if (!v) return [] as { label: string; msg: string }[];
+    const labels: Record<string, string> = {
+      pulse: "Pulse", bp: "B.P.", temperature: "Temp.", respRate: "Resp. R.",
+      spo2: "SpO₂", weight: "Weight", height: "Height",
+    };
+    return (Object.keys(labels) as (keyof typeof v)[])
+      .filter((k) => vitalsTouched[k as string])
+      .map((k) => ({ label: labels[k as string], msg: validateVital(k as string, v[k]) }))
+      .filter((e): e is { label: string; msg: string } => e.msg !== null);
+  }, [draft?.vitals, vitalsTouched]);
   const isCompleted = draft?.status === "completed";
 
   // Visit options come from the patient's completed count — every visit type
@@ -15720,6 +15878,9 @@ export default function PrescriptionApp({ token }: { token: string }) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
 
+  const dateErr = validateRxDate(prescriptionDate);
+  const feeErr = validateFee(fee);
+
   // A restored draft repopulates the toolbar fields. Keyed on the draft id so
   // this runs when a draft is loaded, not on every edit.
   const loadedDraftId = draft?.id ?? null;
@@ -15809,10 +15970,13 @@ export default function PrescriptionApp({ token }: { token: string }) {
               inputMode="numeric"
               value={fee}
               onChange={(e) => {
+                // Digit filter already excludes "-", so a negative cannot be
+                // typed; validateFee makes the rule explicit regardless.
                 const next = e.target.value.replace(/[^\d]/g, "");
                 setFee(next);
                 updateDraft({ fee: next });
               }}
+              onBlur={() => setHeaderTouched((t) => ({ ...t, fee: true }))}
               className="text-[13px] font-medium text-white bg-transparent border-none outline-none p-0 font-[DM_Sans]"
               style={{ width: `${Math.max(2, fee.length || 1)}ch` }}
             />
@@ -15923,7 +16087,10 @@ export default function PrescriptionApp({ token }: { token: string }) {
             onClick={() => {
               if (draft === null) return;
               // Already completed — reopen the preview without re-completing.
-              if (!isCompleted) completeDraft();
+              if (isCompleted) { setShowPreview(true); return; }
+              setCompleteAttempted(true);
+              if (completeBlockers.length > 0 || dateErr !== null) return;
+              completeDraft();
               setShowPreview(true);
             }}
             className="flex items-center gap-[5px] px-[12px] h-[28px] rounded-[6px]" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}>
@@ -16169,6 +16336,19 @@ export default function PrescriptionApp({ token }: { token: string }) {
         </div>
       )}
 
+      {(() => {
+        const msgs: string[] = [];
+        if (headerTouched.fee && feeErr) msgs.push(`Fee: ${feeErr}`);
+        if (dateErr) msgs.push(`Date: ${dateErr}`);
+        if (completeAttempted && !isCompleted) msgs.push(...completeBlockers);
+        if (msgs.length === 0) return null;
+        return (
+          <div className="flex flex-col gap-[2px] px-[16px] py-[4px] bg-white shrink-0">
+            {msgs.map((m) => <FieldError key={m} msg={m} />)}
+          </div>
+        );
+      })()}
+
       {/* ═══ MAIN CONTENT ═══ */}
       {/* Grey section-body backdrop — transparent section bodies show this
           through, so the white input fields sit on grey. */}
@@ -16405,6 +16585,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                               },
                             })
                           }
+                          onBlur={() => setVitalsTouched((t) => ({ ...t, [v.field]: true }))}
                           className="text-[15px] text-[#0F100F] w-full min-w-0 h-full self-stretch text-left outline-none bg-transparent"
                         />
                         <span className="self-stretch flex items-center min-w-0 pl-[4px] pr-[8px]">
@@ -16418,6 +16599,14 @@ export default function PrescriptionApp({ token }: { token: string }) {
                       and looks like a stray border at the bottom-right. */}
                   <div className="bg-white" />
                 </div>
+
+                {vitalErrors.length > 0 && (
+                  <div className="flex flex-col gap-[2px] px-[2px]">
+                    {vitalErrors.map((e) => (
+                      <FieldError key={e.label} msg={`${e.label}: ${e.msg}`} />
+                    ))}
+                  </div>
+                )}
 
                 {/* Notes Textarea */}
                 <textarea
@@ -16487,6 +16676,13 @@ export default function PrescriptionApp({ token }: { token: string }) {
                       setMedications(rows.map((r) => ({ id: newRowId(), ...r })))
                     }
                   />
+                  {incompleteMeds.length > 0 && (
+                    <div className="flex flex-col gap-[2px] px-[6px] pb-[4px]">
+                      {incompleteMeds.map((m) => (
+                        <FieldError key={m.id} msg={`${m.medicine}: add a dose before completing.`} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
