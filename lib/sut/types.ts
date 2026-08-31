@@ -7,6 +7,8 @@
 import type {
   PatientPick,
   V2MedicineItem,
+  V2MedicineForm,
+  V2FieldType,
   AdviceLibEntry,
   SavedAdvice,
   OverallTemplate,
@@ -19,6 +21,8 @@ import { TEST_LIBRARY, DIAGNOSIS_LIBRARY } from "@/components/sut/PrescriptionAp
 export type {
   PatientPick,
   V2MedicineItem,
+  V2MedicineForm,
+  V2FieldType,
   AdviceLibEntry,
   SavedAdvice,
   OverallTemplate,
@@ -30,6 +34,18 @@ export type {
 /** A list row that owns a stable id. Ids are generated on add, live for the
  *  row's lifetime, and are never derived from content or index (DR-025). */
 export type ListRow = { id: string; text: string };
+
+/** One medication row. `phases` models a tapering regimen — each entry is a
+ *  dose chain sharing the medicine's schema (DR-026). */
+export type Medication = {
+  id: string;
+  medicine: string;
+  generic: string;
+  form?: V2MedicineForm;
+  schema: V2FieldType[];
+  phases: Array<Partial<Record<V2FieldType, string>>>;
+  typeText: string;
+};
 
 export type Prescription = {
   id: string;
@@ -52,7 +68,7 @@ export type Prescription = {
   history: { id: string; text: string; remark: string }[];
   drugHistory: ListRow[];
   diagnoses: ListRow[];
-  medications: unknown[]; // typed in the medications brief
+  medications: Medication[];
   tests: ListRow[];
   advice: (SavedAdvice & { id: string })[];
   followUp: { mode: "After" | "On"; amount: string; unit: string; date: string };

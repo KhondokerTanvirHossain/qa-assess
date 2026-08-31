@@ -740,3 +740,33 @@ delete bug indistinguishable from a real one.
 A localStorage payload written before this change is unreadable and is
 discarded on load rather than migrated. Acceptable — the SUT is disposable
 per-candidate state (DR-005), and no candidate has used it yet.
+
+---
+
+## DR-026: One medication shape; the read-only saved block is removed
+
+**Date:** 2026-08-30 · **Status:** Accepted
+
+**Context**
+The ported file carried two medication shapes: a flat `{name, generic, dosage}`
+consumed by a read-only block in the treatment section, and a schema-driven
+structure with `phases` produced by the editable rows. Nothing converted
+between them, and `savedMedications` was never written to, so the read-only
+block never rendered.
+
+**Decision**
+`draft.medications` holds the structured shape. `TreatmentAddRows` renders
+every medication as an editable row. The read-only block and
+`savedMedications` are removed.
+
+**Rejected**
+Keeping both, with committed rows rendering read-only and new rows editable.
+It would require a lossy conversion — the flat shape cannot express multiple
+dose phases — and would make a doctor unable to edit a medication after
+entering it.
+
+**Consequences**
+Removes ported markup, permitted because the block never rendered (its source
+array was always empty), so there is no visual change. Delete moves onto the
+row and addresses by id. Unblocks two planned bugs — "saves with zero
+medications" and "same drug addable twice" — which were previously undetectable.

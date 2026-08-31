@@ -3,7 +3,21 @@ import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useSut } from "@/lib/sut/SutProvider";
-import type { ListRow as SutListRow } from "@/lib/sut/types";
+import type { ListRow as SutListRow, Medication } from "@/lib/sut/types";
+
+// The six lifted medication data fields, without the row id. The trailing
+// blank add-row holds one of these locally until it is promoted.
+type MedicationData = Omit<Medication, "id">;
+
+const EMPTY_MED_SCHEMA: V2FieldType[] = ["DOSAGE_UNIT", "FREQUENCY", "MEAL_TIMING", "DURATION", "NOTE"];
+const blankMedication = (): MedicationData => ({
+  medicine: "",
+  generic: "",
+  form: undefined,
+  schema: EMPTY_MED_SCHEMA,
+  phases: [{}],
+  typeText: "",
+});
 import {
   ChevronLeft,
   ChevronRight,
@@ -183,7 +197,7 @@ const composeDose = (schedule: string, when: string, duration: string, indicatio
 // Source: Google Sheet "Copy of Copy of B · Per-Form Sectioned" (rows 1-18
 // for samples, rows 21-38 for the per-medicine schemas).
 
-type V2FieldType =
+export type V2FieldType =
   | "DOSAGE"
   | "DOSAGE_UNIT"
   | "UNIT"
@@ -201,7 +215,7 @@ type V2FieldType =
 // `form` drives which option set the form-specific dropdowns show. E.g. a
 // tablet medicine's DOSAGE_UNIT dropdown lists `1 tab / 2 tab / ½ tab`,
 // while a syrup shows `5 ml / 10 ml / 15 ml`.
-type V2MedicineForm =
+export type V2MedicineForm =
   | "tablet" | "capsule" | "syrup" | "suppository" | "pessary"
   | "ampoule" | "vial" | "patch" | "lozenge" | "sachet" | "spray"
   | "enema" | "inhaler" | "drops" | "cream" | "mouthwash"
@@ -1111,6 +1125,7 @@ const DRUG_HISTORY_LIBRARY = [
 const EMPTY_COMPLAINTS: { id: string; text: string; remark: string }[] = [];
 const EMPTY_ROWS: SutListRow[] = [];
 const EMPTY_ADVICE: (SavedAdvice & { id: string })[] = [];
+const EMPTY_MEDICATIONS: Medication[] = [];
 
 // Row ids are generated on add and live for the row's lifetime. Never derived
 // from content or index (DR-025) — a content-derived key remounts the input on
@@ -2775,62 +2790,114 @@ function TreatmentAddRows({
   startingSerial,
   mode,
   demoSeeded = false,
+  medications,
+  onChangeMedication,
+  onAddMedication,
+  onDeleteMedication,
+  onSeedMedications,
 }: {
   startingSerial: number;
   mode: "dropdown" | "type";
   // Toggle from the parent: true → fill with all 18 V2 library medicines
   // (plus a trailing empty add-row); false → reset to one blank add-row.
   demoSeeded?: boolean;
+  // Committed rows live on the draft (DR-026); the trailing blank stays local.
+  medications: Medication[];
+  onChangeMedication: (id: string, patch: Partial<MedicationData>) => void;
+  onAddMedication: (data: MedicationData) => void;
+  onDeleteMedication: (id: string) => void;
+  onSeedMedications: (rows: MedicationData[]) => void;
 }) {
-  // Patient-selection variant: Treatment starts empty (single blank add-row).
-  // Library still feeds the typeahead — rows only appear when the doctor
-  // picks a medicine. Removed the 18-medicine pre-fill so the section is
-  // blank until a patient is selected and the doctor adds entries.
-  const [rows, setRows] = useState<TxRow[]>(() => [{ id: "med-0" }]);
+  // Only the trailing blank add-row is local. It is promoted into the draft
+  // the moment a medicine is chosen, and a fresh blank takes its place.
+  const [blank, setBlank] = useState<MedicationData>(blankMedication);
+  const [blankKey, setBlankKey] = useState(() => `blank-${Date.now()}`);
   const medInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [dismissedDupes, setDismissedDupes] = useState<Record<string, true>>({});
 
   // React to the parent's toggle — seed all 18 when on, clear back to a
-  // single empty row when off. Fresh IDs each transition so the rows
-  // remount cleanly.
+  // single empty row when off.
+  const seededRef = useRef<boolean | null>(null);
   useEffect(() => {
+    if (seededRef.current === demoSeeded) return;
+    seededRef.current = demoSeeded;
     if (demoSeeded) {
-      const stamp = Date.now();
-      setRows([
-        ...MEDICINE_LIBRARY_V2.map((m, i) => ({ id: `seed-${stamp}-${i}-${m.id}`, initialMedicine: m })),
-        { id: `med-${stamp}` },
-      ]);
+      onSeedMedications(
+        MEDICINE_LIBRARY_V2.map((m) => ({
+          medicine: v2MedDisplay(m),
+          generic: m.generic ?? "",
+          form: m.form,
+          schema: m.schema,
+          phases: [m.defaults ?? {}],
+          typeText: m.typeText ?? composeTypeText(m.defaults ?? {}),
+        })),
+      );
     } else {
-      setRows([{ id: `med-${Date.now()}` }]);
+      onSeedMedications([]);
     }
+    setBlank(blankMedication());
+    setBlankKey(`blank-${Date.now()}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoSeeded]);
+
+  // First row carrying each medicine name — later rows with the same name are
+  // flagged. Comparison is trimmed and case-insensitive.
+  const firstSeen = new Map<string, string>();
+  for (const m of medications) {
+    const key = m.medicine.trim().toLowerCase();
+    if (key && !firstSeen.has(key)) firstSeen.set(key, m.id);
+  }
+
+  const total = medications.length + 1;
   return (
     <>
-      {rows.map((row, i) => (
-        <TreatmentInputRowV2
-          key={row.id}
-          serial={startingSerial + i}
-          isLastRow={i === rows.length - 1}
-          mode={mode}
-          initialMedicine={row.initialMedicine}
-          onPicked={() => {
-            if (i === rows.length - 1) {
-              setRows((prev) => [...prev, { id: `med-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }]);
-            }
-          }}
-          registerMedRef={(el) => { medInputRefs.current[row.id] = el; }}
-          focusNextMed={() => {
-            const nextId = rows[i + 1]?.id;
-            if (nextId) medInputRefs.current[nextId]?.focus();
-          }}
-          onDelete={() => {
-            setRows((prev) => {
-              const next = prev.filter((x) => x.id !== row.id);
-              return next.length > 0 ? next : [{ id: `med-${Date.now()}` }];
-            });
-            delete medInputRefs.current[row.id];
-          }}
-        />
-      ))}
+      {medications.map((m, i) => {
+        const key = m.medicine.trim().toLowerCase();
+        const owner = key ? firstSeen.get(key) : undefined;
+        const isDupe = !!owner && owner !== m.id && !dismissedDupes[m.id];
+        return (
+          <TreatmentInputRowV2
+            key={m.id}
+            serial={startingSerial + i}
+            isLastRow={false}
+            mode={mode}
+            data={m}
+            onChange={(patch) => onChangeMedication(m.id, patch)}
+            duplicateOf={isDupe ? m.medicine : undefined}
+            onDismissDuplicate={() => setDismissedDupes((p) => ({ ...p, [m.id]: true }))}
+            onPicked={() => {}}
+            registerMedRef={(el) => { medInputRefs.current[m.id] = el; }}
+            focusNextMed={() => {
+              const nextId = medications[i + 1]?.id ?? blankKey;
+              medInputRefs.current[nextId]?.focus();
+            }}
+            onDelete={() => {
+              onDeleteMedication(m.id);
+              delete medInputRefs.current[m.id];
+            }}
+          />
+        );
+      })}
+      <TreatmentInputRowV2
+        key={blankKey}
+        serial={startingSerial + medications.length}
+        isLastRow={total === medications.length + 1}
+        mode={mode}
+        data={blank}
+        onChange={(patch) => setBlank((prev) => ({ ...prev, ...patch }))}
+        onPicked={(picked) => {
+          // Promote the blank into the draft and put a fresh blank in its place.
+          onAddMedication({ ...blank, ...picked });
+          setBlank(blankMedication());
+          setBlankKey(`blank-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
+        }}
+        registerMedRef={(el) => { medInputRefs.current[blankKey] = el; }}
+        focusNextMed={() => {}}
+        onDelete={() => {
+          setBlank(blankMedication());
+          setBlankKey(`blank-${Date.now()}`);
+        }}
+      />
     </>
   );
 }
@@ -2847,43 +2914,45 @@ function TreatmentInputRowV2({
   registerMedRef,
   focusNextMed,
   onDelete,
-  initialMedicine,
   mode,
+  data,
+  onChange,
+  duplicateOf,
+  onDismissDuplicate,
 }: {
   serial: number;
   isLastRow: boolean;
-  onPicked: () => void;
+  // Fires when a medicine is chosen — by picking from the typeahead or by
+  // Enter on free text. Carries the fields the pick resolved so the owner can
+  // promote a blank row into the draft in one write.
+  onPicked: (picked: Partial<MedicationData>) => void;
   registerMedRef: (el: HTMLInputElement | null) => void;
   focusNextMed: () => void;
   onDelete: () => void;
-  initialMedicine?: V2MedicineItem;
   mode: "dropdown" | "type";
+  // The six lifted data fields. UI state (open, highlight, focus, pos,
+  // medColumnWidth) stays local to the row.
+  data: MedicationData;
+  onChange: (patch: Partial<MedicationData>) => void;
+  // Set when an earlier row already carries this medicine.
+  duplicateOf?: string;
+  onDismissDuplicate?: () => void;
 }) {
   // Default schema shown for the empty "Add medication" row so the doctor
   // sees the dropdown placeholders even before picking a medicine. Replaced
   // by the picked medicine's specific schema once they make a selection.
   const DEFAULT_EMPTY_SCHEMA: V2FieldType[] = ["DOSAGE_UNIT", "FREQUENCY", "MEAL_TIMING", "DURATION", "NOTE"];
 
-  const [medicine, setMedicine] = useState(initialMedicine ? v2MedDisplay(initialMedicine) : "");
-  const [generic, setGeneric] = useState(initialMedicine?.generic ?? "");
-  const [form, setForm] = useState<V2MedicineForm | undefined>(initialMedicine?.form);
-  const [schema, setSchema] = useState<V2FieldType[]>(initialMedicine?.schema ?? DEFAULT_EMPTY_SCHEMA);
-  // Dose phases: each entry is one dose chain (dosage · frequency · timing ·
-  // duration · note) sharing the medicine's schema. Multiple phases model a
-  // tapering regimen — e.g. 2 tab ×2/day for 7 days, then 1 tab ×2/day for
-  // 14 days. Single-phase rows render identically to before.
-  const [phases, setPhases] = useState<Array<Partial<Record<V2FieldType, string>>>>(
-    () => [initialMedicine?.defaults ?? {}],
-  );
-  // Type-mode state: a single Bengali free-text field. Uses the medicine's
-  // explicit `typeText` override if provided, otherwise composes one from
-  // `defaults`. Stored independently of the dropdown values so toggling
-  // between modes preserves both sets.
-  const [typeText, setTypeText] = useState<string>(() =>
-    initialMedicine
-      ? (initialMedicine.typeText ?? composeTypeText(initialMedicine.defaults ?? {}))
-      : "",
-  );
+  // The six data fields now live on the draft (or, for the trailing blank
+  // add-row, on its owner's local scratch row). Dose phases: each entry is one
+  // dose chain (dosage · frequency · timing · duration · note) sharing the
+  // medicine's schema. Multiple phases model a tapering regimen — e.g. 2 tab
+  // ×2/day for 7 days, then 1 tab ×2/day for 14 days. Single-phase rows render
+  // identically to before. `typeText` is stored independently of the dropdown
+  // values so toggling between modes preserves both sets.
+  const { medicine, generic, form, schema, phases, typeText } = data;
+  const setMedicine = (v: string) => onChange({ medicine: v });
+  const setTypeText = (v: string) => onChange({ typeText: v });
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const [medFocused, setMedFocused] = useState(false);
@@ -2944,14 +3013,17 @@ function TreatmentInputRowV2({
   }, [open]);
 
   const pickItem = (item: V2MedicineItem) => {
-    setMedicine(v2MedDisplay(item));
-    setGeneric(item.generic ?? "");
-    setForm(item.form);
-    setSchema(item.schema);
-    setPhases([item.defaults ?? {}]);
-    setTypeText(item.typeText ?? composeTypeText(item.defaults ?? {}));
+    const picked: Partial<MedicationData> = {
+      medicine: v2MedDisplay(item),
+      generic: item.generic ?? "",
+      form: item.form,
+      schema: item.schema,
+      phases: [item.defaults ?? {}],
+      typeText: item.typeText ?? composeTypeText(item.defaults ?? {}),
+    };
+    onChange(picked);
     setOpen(false);
-    onPicked();
+    onPicked(picked);
   };
 
   const onMedicineKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -2971,9 +3043,10 @@ function TreatmentInputRowV2({
       if (open && matches[highlight]) pickItem(matches[highlight]);
       else if (medicine.trim()) {
         // Free-text fallback — keep the default schema so doctor can fill anything.
-        setSchema(DEFAULT_EMPTY_SCHEMA);
+        const picked: Partial<MedicationData> = { schema: DEFAULT_EMPTY_SCHEMA };
+        onChange(picked);
         setOpen(false);
-        onPicked();
+        onPicked({ ...picked, medicine });
       }
     } else if (e.key === "Escape") {
       setOpen(false);
@@ -2981,12 +3054,16 @@ function TreatmentInputRowV2({
   };
 
   const setField = (phaseIdx: number, key: V2FieldType, value: string) =>
-    setPhases((prev) => prev.map((p, i) => (i === phaseIdx ? { ...p, [key]: value } : p)));
+    onChange({
+      phases: phases.map((p, i) => (i === phaseIdx ? { ...p, [key]: value } : p)),
+    });
   // New phase starts as a copy of the previous one — tapers usually keep the
   // same frequency/timing and only change the dose amount and duration.
-  const addPhase = () => setPhases((prev) => [...prev, { ...prev[prev.length - 1] }]);
+  const addPhase = () => onChange({ phases: [...phases, { ...phases[phases.length - 1] }] });
   const removePhase = (phaseIdx: number) =>
-    setPhases((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== phaseIdx) : prev));
+    onChange({
+      phases: phases.length > 1 ? phases.filter((_, i) => i !== phaseIdx) : phases,
+    });
   const multi = phases.length > 1;
 
   return (
@@ -3215,6 +3292,25 @@ function TreatmentInputRowV2({
           })}
         </div>,
         document.body,
+      )}
+      {duplicateOf && (
+        <div
+          className="flex items-center gap-[6px] px-[6px] pb-[4px]"
+          style={{ color: "#d97706" }}
+        >
+          <AlertCircle size={12} className="shrink-0" />
+          <span className="text-[12px] flex-1 min-w-0 truncate">
+            {duplicateOf} is already in this prescription.
+          </span>
+          <button
+            type="button"
+            onClick={onDismissDuplicate}
+            className="text-[12px] underline cursor-pointer bg-transparent border-none p-0"
+            style={{ color: "#d97706" }}
+          >
+            Dismiss
+          </button>
+        </div>
       )}
     </div>
   );
@@ -15186,7 +15282,11 @@ export default function PrescriptionApp({ token }: { token: string }) {
   const setSavedComplaints = (
     v: ComplaintRow[] | ((p: ComplaintRow[]) => ComplaintRow[]),
   ) => updateDraft({ complaints: typeof v === "function" ? v(draft?.complaints ?? []) : v });
-  const [savedMedications, setSavedMedications] = useState<typeof medications>([]);
+  // DR-026: one medication shape. The read-only saved block is gone; every
+  // medication renders as an editable row in TreatmentAddRows.
+  const savedMedications = draft?.medications ?? EMPTY_MEDICATIONS;
+  const setMedications = (v: Medication[] | ((p: Medication[]) => Medication[])) =>
+    updateDraft({ medications: typeof v === "function" ? v(draft?.medications ?? []) : v });
   type AdviceRow = SavedAdvice & { id: string };
   const savedTests = draft?.tests ?? EMPTY_ROWS;
   const setSavedTests = (v: SutListRow[] | ((p: SutListRow[]) => SutListRow[])) =>
@@ -15553,7 +15653,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
               setSavedComplaints([]);
               setSavedHistory([]);
               setHistoryIntakeState(EMPTY_HISTORY_INTAKE);
-              setSavedMedications([]);
+              setMedications([]);
               setSavedTests([]);
               setSavedAdvice([]);
               setSavedDiagnoses([]);
@@ -16140,31 +16240,23 @@ export default function PrescriptionApp({ token }: { token: string }) {
 
               <div className="flex-1 p-[6px]">
                 <div className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
-                  {savedMedications.map((med, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-[6px] px-[6px] h-[30px] bg-white border-b border-[#e7ebf0]"
-                    >
-                      <SerialBadge num={i + 1} />
-                      <div className="flex items-center gap-[16px] flex-1 min-w-0">
-                        <div className="flex-1 min-w-[260px] border-r border-[#e7ebf0] pr-[16px]">
-                          <div className="flex items-center gap-[12px]">
-                            <span className="text-[14px] text-[#0F100F]">{med.name}</span>
-                            <span className="text-[13px] text-[#9ca3af]">({med.generic})</span>
-                          </div>
-                        </div>
-                        <p className="text-[14px] text-[#0F100F] font-[Kalpurush] truncate">
-                          {med.dosage}
-                        </p>
-                      </div>
-                      <X
-                        size={13}
-                        className="text-[#8c9198] hover:text-[#dc2626] transition-colors cursor-pointer shrink-0"
-                        onClick={() => setSavedMedications((p) => p.filter((_, j) => j !== i))}
-                      />
-                    </div>
-                  ))}
-                  <TreatmentAddRows key={`tx-${clearKey}`} mode={treatmentMode} startingSerial={savedMedications.length + 1} demoSeeded={treatmentDemoSeeded} />
+                  <TreatmentAddRows
+                    key={`tx-${clearKey}`}
+                    mode={treatmentMode}
+                    startingSerial={1}
+                    demoSeeded={treatmentDemoSeeded}
+                    medications={savedMedications}
+                    onChangeMedication={(id, patch) =>
+                      setMedications((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m)))
+                    }
+                    onAddMedication={(data) =>
+                      setMedications((p) => [...p, { id: newRowId(), ...data }])
+                    }
+                    onDeleteMedication={(id) => setMedications((p) => p.filter((m) => m.id !== id))}
+                    onSeedMedications={(rows) =>
+                      setMedications(rows.map((r) => ({ id: newRowId(), ...r })))
+                    }
+                  />
                 </div>
               </div>
             </div>
