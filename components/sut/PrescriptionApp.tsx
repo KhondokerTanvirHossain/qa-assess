@@ -12111,7 +12111,19 @@ export const MOCK_TESTS: TestItem[] = [
   },
 ];
 
-function ManageTestModal({ onClose }: { onClose: () => void }) {
+function ManageTestModal({
+  onClose,
+  items,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  onClose: () => void;
+  items: TestItem[];
+  onAdd: (t: TestItem) => void;
+  onEdit: (id: string, patch: Partial<TestItem>) => void;
+  onDelete: (id: string) => void;
+}) {
   const [activeTab, setActiveTab] = useState<"all" | "mine">("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -12144,7 +12156,7 @@ function ManageTestModal({ onClose }: { onClose: () => void }) {
     setFormRanges((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const filtered = MOCK_TESTS.filter((t) => {
+  const filtered = items.filter((t) => {
     if (activeTab === "mine" && !t.isMine) return false;
     if (!search) return true;
     const q = search.toLowerCase();
@@ -12160,7 +12172,7 @@ function ManageTestModal({ onClose }: { onClose: () => void }) {
   // other test collapse into a single panel row; "single-member panels" (a
   // test whose panelName is unique among its peers) and tests with no
   // panelName at all both render as individual test rows. Order follows the
-  // first occurrence of each panel / standalone test in MOCK_TESTS.
+  // first occurrence of each panel / standalone test in the library.
   type ListEntry =
     | { kind: "panel"; name: string; tests: TestItem[] }
     | { kind: "test"; test: TestItem };
@@ -12195,13 +12207,13 @@ function ManageTestModal({ onClose }: { onClose: () => void }) {
   // right-side detail view.
   const PANEL_PREFIX = "panel:";
   const selectedPanel = selectedId && selectedId.startsWith(PANEL_PREFIX) ? selectedId.slice(PANEL_PREFIX.length) : null;
-  const selectedPanelTests = selectedPanel ? MOCK_TESTS.filter((t) => t.panelName === selectedPanel) : [];
-  const selected = selectedId && !selectedPanel ? MOCK_TESTS.find((t) => t.id === selectedId) : null;
+  const selectedPanelTests = selectedPanel ? items.filter((t) => t.panelName === selectedPanel) : [];
+  const selected = selectedId && !selectedPanel ? items.find((t) => t.id === selectedId) : null;
 
   // When editing, the form acts on a specific test — track it separately so
   // the edit flow doesn't lose the panel context the user came from.
   const [editingTestId, setEditingTestId] = useState<string | null>(null);
-  const editingTest = editingTestId ? MOCK_TESTS.find((t) => t.id === editingTestId) : null;
+  const editingTest = editingTestId ? items.find((t) => t.id === editingTestId) : null;
 
   const resetForm = () => {
     setFormPanel(undefined);
@@ -12220,7 +12232,7 @@ function ManageTestModal({ onClose }: { onClose: () => void }) {
     setFormRanges([{ id: `new-${Date.now()}-0` }]);
   };
   const startEdit = (testId?: string) => {
-    const target = testId ? MOCK_TESTS.find((t) => t.id === testId) : selected;
+    const target = testId ? items.find((t) => t.id === testId) : selected;
     if (target) {
       setEditingTestId(target.id);
       setFormPanel(target.panelName);
@@ -12263,7 +12275,7 @@ function ManageTestModal({ onClose }: { onClose: () => void }) {
   const canSave = mode === "edit" ? editHasChanges : addIsValid;
 
   const confirmTarget = confirmDeleteFor
-    ? MOCK_TESTS.find((t) => t.id === confirmDeleteFor)
+    ? items.find((t) => t.id === confirmDeleteFor)
     : null;
 
   const scrollbarCss = `
@@ -12898,7 +12910,29 @@ function ManageTestModal({ onClose }: { onClose: () => void }) {
                     Cancel
                   </button>
                   <button
-                    onClick={cancelForm}
+                    onClick={() => {
+                      // Ranges are carried across whole — every nested row is
+                      // stored, not just the ones the form happened to render.
+                      const ranges: TestRange[] = formRanges.map((rg) => ({ ...rg }));
+                      const fields = {
+                        panelName: formPanel,
+                        name: formName,
+                        abbreviation: formAbbrev,
+                        specimen: formSpecimen,
+                        method: formMethod || undefined,
+                        unit: formUnit,
+                        ranges,
+                      };
+                      if (mode === "add") {
+                        const id = `tst-${Date.now().toString(36)}`;
+                        onAdd({ id, ...fields, isMine: true });
+                        setSelectedId(id);
+                      } else if (editingTest) {
+                        onEdit(editingTest.id, fields);
+                      }
+                      setEditingTestId(null);
+                      setMode("view");
+                    }}
                     disabled={!canSave}
                     className="px-[22px] h-[36px] rounded-[8px] text-[14px] font-semibold text-white border-none"
                     style={{
@@ -13076,6 +13110,7 @@ function ManageTestModal({ onClose }: { onClose: () => void }) {
                 </button>
                 <button
                   onClick={() => {
+                    if (confirmDeleteFor) onDelete(confirmDeleteFor);
                     setConfirmDeleteFor(null);
                     setSelectedId(null);
                     setMode("view");
@@ -16420,7 +16455,15 @@ export default function PrescriptionApp({ token }: { token: string }) {
             onDelete={(id) => libDelete("diagnoses", id)}
           />
         )}
-        {showManageTest && <ManageTestModal onClose={() => setShowManageTest(false)} />}
+        {showManageTest && (
+          <ManageTestModal
+            onClose={() => setShowManageTest(false)}
+            items={libraries.tests}
+            onAdd={(t) => libAdd("tests", t)}
+            onEdit={(id, patch) => libEdit("tests", id, patch)}
+            onDelete={(id) => libDelete("tests", id)}
+          />
+        )}
         {showSaveTestTemplate && (
           <SaveTestTemplateModal
             onClose={() => setShowSaveTestTemplate(false)}
