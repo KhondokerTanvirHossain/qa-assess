@@ -770,3 +770,34 @@ Removes ported markup, permitted because the block never rendered (its source
 array was always empty), so there is no visual change. Delete moves onto the
 row and addresses by id. Unblocks two planned bugs — "saves with zero
 medications" and "same drug addable twice" — which were previously undetectable.
+
+---
+
+## DR-027: Templates carry the full prescription payload
+
+**Date:** 2026-08-30 · **Status:** Accepted
+
+**Context**
+The ported template types were lossy display shapes — `OverallTemplate` held
+four `string[]` arrays and omitted history, drug history, vitals, diagnosis,
+and follow-up; `TreatmentTemplate` used a flat `{name, dose}` that cannot
+express dose phases. The product owner requires Overall to capture every
+prescription section.
+
+**Decision**
+Templates store a structured `TemplatePayload` covering all nine sections.
+Insert modals derive their preview lists from the payload at render time, so
+modal layout is unchanged. Fee, date, visit type, and patient are excluded —
+they are visit-specific, not reusable.
+
+**Rejected**
+Keeping the display arrays alongside a payload. Two representations of the
+same data drift, and the modal preview would eventually disagree with what
+Insert produces.
+
+**Consequences**
+Inserting an Overall template overwrites vitals with the template's values.
+Accepted as production behaviour on the product owner's instruction; a
+candidate may report it, and it is a honeypot candidate for the bug key.
+`SaveOverallTemplateModal` loses its static placeholder previews — an empty
+prescription now previews as empty.

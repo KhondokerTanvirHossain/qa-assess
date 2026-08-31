@@ -3,7 +3,15 @@ import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useSut } from "@/lib/sut/SutProvider";
-import type { ListRow as SutListRow, Medication } from "@/lib/sut/types";
+import type {
+  ListRow as SutListRow,
+  Medication,
+  TemplatePayload,
+  OverallTemplate,
+  TreatmentTemplate,
+  TestTemplate,
+  AdviceTemplate,
+} from "@/lib/sut/types";
 
 // The six lifted medication data fields, without the row id. The trailing
 // blank add-row holds one of these locally until it is promoted.
@@ -8067,7 +8075,7 @@ type FtTestFields = {
   ranges: TestRange[];
 };
 
-function SaveTestTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+function SaveTestTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: (title: string) => void }) {
   const [templateTitle, setTemplateTitle] = useState("");
 
   // Seed free-text drafts — Test Name starts empty so the doctor enters it
@@ -8501,7 +8509,7 @@ function SaveTestTemplateModal({ onClose, onSave }: { onClose: () => void; onSav
               Cancel
             </button>
             <button
-              onClick={onSave}
+              onClick={() => onSave(templateTitle)}
               disabled={!canSave}
               className="px-[18px] h-[34px] rounded-[8px] text-[14px] font-semibold text-white border-none"
               style={{
@@ -8554,7 +8562,7 @@ const isBengaliText = (s: string) => /[ঀ-৿]/.test(s);
 // modal's Advice tab.
 type FtField = { title: string; descEn: string; descBn: string };
 
-function SaveAdviceTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+function SaveAdviceTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: (title: string) => void }) {
   const [templateTitle, setTemplateTitle] = useState("");
   const canSave = templateTitle.trim() !== "";
 
@@ -8676,7 +8684,7 @@ function SaveAdviceTemplateModal({ onClose, onSave }: { onClose: () => void; onS
             Cancel
           </button>
           <button
-            onClick={onSave}
+            onClick={() => onSave(templateTitle)}
             disabled={!canSave}
             className="px-[18px] h-[34px] rounded-[8px] text-[14px] font-semibold text-white border-none"
             style={{
@@ -8754,7 +8762,7 @@ type FtMedicineFields = {
   schemaValues?: Partial<Record<V2FieldType, string>>;
 };
 
-function SaveTreatmentTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+function SaveTreatmentTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: (title: string) => void }) {
   const [templateTitle, setTemplateTitle] = useState("");
 
   // Seed free-text drafts — all fields start empty so the doctor enters
@@ -9202,7 +9210,7 @@ function SaveTreatmentTemplateModal({ onClose, onSave }: { onClose: () => void; 
               Cancel
             </button>
             <button
-              onClick={onSave}
+              onClick={() => onSave(templateTitle)}
               disabled={!canSave}
               className="px-[18px] h-[34px] rounded-[8px] text-[14px] font-semibold text-white border-none"
               style={{
@@ -9296,7 +9304,7 @@ const DRAFT_CHIEF_HISTORY: { id: string; text: string; remark?: string }[] = [
 const DRAFT_CHIEF_SUMMARY: string =
   "Patient presents with worsening joint pain over the past week. No recent trauma. Currently managed with lifestyle measures and PRN analgesics.";
 
-function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: (title: string) => void }) {
   const [title, setTitle] = useState("");
 
   // Chief Complaints stay tied to the live Rx — always library, never need
@@ -10142,7 +10150,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
               Cancel
             </button>
             <button
-              onClick={onSave}
+              onClick={() => onSave(title)}
               disabled={!canSave}
               className="px-[20px] h-[36px] rounded-[8px] text-[14px] font-semibold text-white border-none"
               style={{
@@ -10164,92 +10172,43 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
 // Picks one saved overall template (Chief / Treatment / Tests / Advice
 // bundled together) and inserts it into the current Rx.
 
-export type OverallTemplate = {
-  id: string;
-  title: string;
-  chief: string[];
-  treatment: string[];
-  tests: string[];
-  advice: string[];
-};
 
-const MOCK_OVERALL_TEMPLATES: OverallTemplate[] = [
-  {
-    id: "ovr1",
-    title: "Hypertension — first visit",
-    chief: ["Headache", "Chest discomfort", "Palpitations", "Dizziness"],
-    treatment: ["Tab. Amlodipine 5 mg", "Tab. Losartan 50 mg", "Tab. Atorvastatin 20 mg"],
-    tests: ["BP monitoring", "ECG", "Lipid profile"],
-    advice: ["Reduce salt intake", "Walk 30 min daily"],
-  },
-  {
-    id: "ovr2",
-    title: "Type 2 diabetes — initial",
-    chief: ["Frequent urination", "Excessive thirst", "Fatigue"],
-    treatment: ["Tab. Metformin 500 mg", "Tab. Glimepiride 1 mg"],
-    tests: ["Fasting blood sugar", "HbA1c", "Renal function test"],
-    advice: ["Avoid sugary food", "Check sugar weekly", "Foot care"],
-  },
-  {
-    id: "ovr3",
-    title: "URTI / Common cold",
-    chief: ["Sore throat", "Runny nose", "Mild fever", "Cough"],
-    treatment: ["Tab. Paracetamol 500 mg", "Syp. Dextromethorphan", "Tab. Cetirizine 10 mg"],
-    tests: [],
-    advice: ["Drink warm fluids", "Rest for 3 days"],
-  },
-  {
-    id: "ovr4",
-    title: "Acute gastroenteritis",
-    chief: ["Loose motion", "Abdominal pain", "Vomiting"],
-    treatment: ["ORS packet", "Tab. Zinc 20 mg", "Cap. Probiotic"],
-    tests: ["Stool routine", "Serum electrolytes"],
-    advice: ["Drink ORS after each loose stool", "Avoid oily food"],
-  },
-  {
-    id: "ovr5",
-    title: "Migraine episode",
-    chief: ["Throbbing headache", "Nausea", "Light sensitivity"],
-    treatment: ["Tab. Sumatriptan 50 mg", "Tab. Naproxen 250 mg"],
-    tests: [],
-    advice: ["Rest in dark room", "Identify triggers"],
-  },
-  {
-    id: "ovr6",
-    title: "Post-delivery routine",
-    chief: ["Fatigue", "Mild back pain"],
-    treatment: ["Tab. Iron + Folic acid", "Tab. Calcium + Vit D₃", "Tab. Paracetamol 500 mg"],
-    tests: ["CBC", "Hb estimation"],
-    advice: ["Eat iron-rich foods", "Light walking after 2 weeks"],
-  },
-];
 
 function InsertOverallTemplateModal({
   onClose,
   onInsert,
   onOpenManage,
+  templates,
 }: {
   onClose: () => void;
   onInsert: (t: OverallTemplate) => void;
   onOpenManage: () => void;
+  templates: OverallTemplate[];
 }) {
   const [search, setSearch] = useState("");
 
-  const filtered = MOCK_OVERALL_TEMPLATES.filter((t) => {
+  // Preview lists are derived from the payload at render time (DR-027) so the
+  // modal cannot drift from what Insert actually produces.
+  const ovPreviewStrings = (t: OverallTemplate) => [
+    ...t.payload.complaints.map((c) => c.text),
+    ...t.payload.medications.map((m) => m.medicine),
+    ...t.payload.tests.map((x) => x.text),
+    ...t.payload.advice.map((a) => a.bn),
+  ];
+
+  const filtered = templates.filter((t) => {
     if (!search) return true;
     const q = search.toLowerCase();
     if (t.title.toLowerCase().includes(q)) return true;
-    return [...t.chief, ...t.treatment, ...t.tests, ...t.advice].some((s) =>
-      s.toLowerCase().includes(q),
-    );
+    return ovPreviewStrings(t).some((s) => s.toLowerCase().includes(q));
   });
 
   const sectionPills = (t: OverallTemplate) => {
     const parts: { label: string; count: number }[] = [];
-    if (t.chief.length > 0) parts.push({ label: "Chief Complaint", count: t.chief.length });
-    if (t.treatment.length > 0) parts.push({ label: "Treatment", count: t.treatment.length });
-    if (t.tests.length > 0) parts.push({ label: "Test", count: t.tests.length });
-    if (t.advice.length > 0) parts.push({ label: "Advice", count: t.advice.length });
+    if (t.payload.complaints.length > 0) parts.push({ label: "Chief Complaint", count: t.payload.complaints.length });
+    if (t.payload.medications.length > 0) parts.push({ label: "Treatment", count: t.payload.medications.length });
+    if (t.payload.tests.length > 0) parts.push({ label: "Test", count: t.payload.tests.length });
+    if (t.payload.advice.length > 0) parts.push({ label: "Advice", count: t.payload.advice.length });
     return parts;
   };
 
@@ -10364,105 +10323,27 @@ function InsertOverallTemplateModal({
 // ── Insert Template (Treatment) Modal ─────────────────────
 
 type MedicineEntry = { name: string; dose: string };
-export type TreatmentTemplate = { id: string; title: string; medicines: MedicineEntry[] };
 
-const MOCK_TREATMENT_TEMPLATES: TreatmentTemplate[] = [
-  {
-    id: "rx1",
-    title: "Hypertension — first line",
-    medicines: [
-      { name: "Tab. Amlodipine 5 mg", dose: "১ ট্যাবলেট সকালে খাবার পরে — ৩০ দিন।" },
-      { name: "Tab. Losartan 50 mg", dose: "১ ট্যাবলেট সকালে — ৩০ দিন।" },
-      { name: "Tab. Hydrochlorothiazide 12.5 mg", dose: "১ ট্যাবলেট সকালে — প্রয়োজনে।" },
-      { name: "Tab. Atorvastatin 20 mg", dose: "১ ট্যাবলেট রাতে খাবার পরে — ৩০ দিন।" },
-      { name: "Tab. Aspirin 75 mg", dose: "১ ট্যাবলেট রাতে খাবার পরে — ৩০ দিন।" },
-      { name: "Tab. Metoprolol 25 mg", dose: "১ ট্যাবলেট সকালে ও রাতে — ৩০ দিন।" },
-      { name: "Cap. Omega-3 1000 mg", dose: "১ ক্যাপসুল সকালে খাবার পরে — ৩০ দিন।" },
-      { name: "Tab. Vitamin D₃ 2000 IU", dose: "১ ট্যাবলেট রাতে খাবার পরে — ৩০ দিন।" },
-    ],
-  },
-  {
-    id: "rx2",
-    title: "Type 2 diabetes — initial",
-    medicines: [
-      { name: "Tab. Metformin 500 mg", dose: "১ ট্যাবলেট সকালে ও রাতে খাবার পরে — ৩০ দিন।" },
-      { name: "Tab. Glimepiride 1 mg", dose: "১ ট্যাবলেট সকালে খাবার আগে — ৩০ দিন।" },
-      { name: "Tab. Empagliflozin 10 mg", dose: "১ ট্যাবলেট সকালে — ৩০ দিন।" },
-    ],
-  },
-  {
-    id: "rx3",
-    title: "Acute bacterial sinusitis",
-    medicines: [
-      { name: "Cap. Amoxiclav 625 mg", dose: "১ ক্যাপসুল দিনে ৩ বার খাবার পরে — ৭ দিন।" },
-      { name: "Tab. Cetirizine 10 mg", dose: "১ ট্যাবলেট রাতে ঘুমানোর আগে — ৫ দিন।" },
-      { name: "Tab. Paracetamol 500 mg", dose: "১ ট্যাবলেট প্রয়োজনে, সর্বোচ্চ ৪ বার — ৩ দিন।" },
-    ],
-  },
-  {
-    id: "rx4",
-    title: "Peptic ulcer / GERD",
-    medicines: [
-      { name: "Cap. Omeprazole 20 mg", dose: "১ ক্যাপসুল সকালে খাবার আগে — ১৪ দিন।" },
-      { name: "Tab. Domperidone 10 mg", dose: "১ ট্যাবলেট দিনে ৩ বার খাবার আগে — ৭ দিন।" },
-      { name: "Syp. Antacid Gel 200 ml", dose: "২ চা-চামচ পরিমাণ দিনে ৩ বার খাবার পরে — ১০ দিন।" },
-    ],
-  },
-  {
-    id: "rx5",
-    title: "Migraine — acute episode",
-    medicines: [
-      { name: "Tab. Sumatriptan 50 mg", dose: "১ ট্যাবলেট যখন ব্যথা শুরু হয়; প্রয়োজনে ২ ঘণ্টা পর আরেকটি।" },
-      { name: "Tab. Naproxen 250 mg", dose: "১ ট্যাবলেট দিনে ২ বার খাবার পরে — ৩ দিন।" },
-      { name: "Tab. Ondansetron 4 mg", dose: "১ ট্যাবলেট বমি বমি ভাবে — প্রয়োজনে।" },
-    ],
-  },
-  {
-    id: "rx6",
-    title: "Upper respiratory infection (URTI)",
-    medicines: [
-      { name: "Tab. Paracetamol 500 mg", dose: "১ ট্যাবলেট দিনে ৩ বার খাবার পরে — ৫ দিন।" },
-      { name: "Tab. Chlorpheniramine 4 mg", dose: "১ ট্যাবলেট রাতে — ৫ দিন।" },
-      { name: "Syp. Dextromethorphan 100 ml", dose: "২ চা-চামচ পরিমাণ দিনে ৩ বার — ৫ দিন।" },
-    ],
-  },
-  {
-    id: "rx7",
-    title: "Post-delivery routine",
-    medicines: [
-      { name: "Tab. Paracetamol 500 mg", dose: "১ ট্যাবলেট দিনে ৩ বার খাবার পরে — ৫ দিন।" },
-      { name: "Tab. Iron + Folic acid", dose: "১ ট্যাবলেট রাতে খাবার পরে — ৯০ দিন।" },
-      { name: "Tab. Calcium 500 mg + Vit D₃", dose: "১ ট্যাবলেট সকালে ও রাতে — ৬০ দিন।" },
-    ],
-  },
-  {
-    id: "rx8",
-    title: "Acute gastroenteritis",
-    medicines: [
-      { name: "ORS packet", dose: "১ প্যাকেট আধা লিটার পানিতে গুলিয়ে প্রতি পাতলা পায়খানার পর — ৩ দিন।" },
-      { name: "Tab. Zinc 20 mg", dose: "১ ট্যাবলেট দিনে একবার — ১০ দিন।" },
-      { name: "Cap. Probiotic", dose: "১ ক্যাপসুল দিনে ২ বার খাবার পরে — ৫ দিন।" },
-    ],
-  },
-];
 
 function InsertTreatmentTemplateModal({
   onClose,
   onInsert,
   onOpenManage,
+  templates,
 }: {
   onClose: () => void;
   onInsert: (t: TreatmentTemplate) => void;
   onOpenManage: () => void;
+  templates: TreatmentTemplate[];
 }) {
   const [search, setSearch] = useState("");
 
-  const filtered = MOCK_TREATMENT_TEMPLATES.filter((t) => {
+  const filtered = templates.filter((t) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
       t.title.toLowerCase().includes(q) ||
-      t.medicines.some((m) => m.name.toLowerCase().includes(q))
+      t.medications.some((m) => m.medicine.toLowerCase().includes(q))
     );
   });
 
@@ -10546,11 +10427,11 @@ function InsertTreatmentTemplateModal({
                     className="text-[11px] font-bold uppercase tracking-[0.4px] shrink-0 rounded-[3px]"
                     style={{ background: "#eef0f4", color: "#5a6070", padding: "2px 6px" }}
                   >
-                    {t.medicines.length} medicines
+                    {t.medications.length} medicines
                   </span>
                 </div>
                 <p className="text-[14px] leading-[1.6]" style={{ color: "#5a6070" }}>
-                  {t.medicines.map((m, i) => (
+                  {t.medications.map((m, i) => (
                     <Fragment key={i}>
                       {i > 0 && (
                         <span
@@ -10565,7 +10446,7 @@ function InsertTreatmentTemplateModal({
                           •
                         </span>
                       )}
-                      {m.name}
+                      {m.medicine}
                     </Fragment>
                   ))}
                 </p>
@@ -10603,72 +10484,27 @@ function InsertTreatmentTemplateModal({
 
 // ── Insert Template (Test) Modal ──────────────────────────
 
-export type TestTemplate = {
-  id: string;
-  title: string;
-  tests: string[];
-};
 
-const MOCK_TEST_TEMPLATES: TestTemplate[] = [
-  {
-    id: "tt1",
-    title: "CBC panel",
-    tests: ["Haemoglobin (Hb)", "WBC", "Platelet count", "Hct", "MCV", "MCH", "MCHC", "Differential count"],
-  },
-  {
-    id: "tt2",
-    title: "Liver Function Test (LFT)",
-    tests: ["ALT (SGPT)", "AST (SGOT)", "ALP", "Total bilirubin", "Direct bilirubin", "Serum albumin", "Total protein"],
-  },
-  {
-    id: "tt3",
-    title: "Renal Function Test (RFT)",
-    tests: ["Serum creatinine", "Blood urea", "Sodium (Na⁺)", "Potassium (K⁺)", "Chloride (Cl⁻)", "eGFR"],
-  },
-  {
-    id: "tt4",
-    title: "Lipid profile",
-    tests: ["Total cholesterol", "HDL cholesterol", "LDL cholesterol", "Triglycerides", "VLDL"],
-  },
-  {
-    id: "tt5",
-    title: "Thyroid profile",
-    tests: ["TSH", "Free T3", "Free T4"],
-  },
-  {
-    id: "tt6",
-    title: "Diabetes check-up",
-    tests: ["Fasting blood sugar (FBS)", "2-hour PPS", "HbA1c", "Urine routine examination"],
-  },
-  {
-    id: "tt7",
-    title: "Pre-operative basic",
-    tests: ["CBC", "BT-CT", "HBsAg", "Serum creatinine", "Urine routine", "Chest X-ray", "ECG"],
-  },
-  {
-    id: "tt8",
-    title: "Pregnancy first-visit",
-    tests: ["CBC", "Blood group & Rh", "HbA1c", "Urine routine", "HBsAg", "Rubella IgG", "VDRL"],
-  },
-];
 
 function InsertTestTemplateModal({
   onClose,
   onInsert,
   onOpenManage,
+  templates,
 }: {
   onClose: () => void;
   onInsert: (t: TestTemplate) => void;
   onOpenManage: () => void;
+  templates: TestTemplate[];
 }) {
   const [search, setSearch] = useState("");
 
-  const filtered = MOCK_TEST_TEMPLATES.filter((t) => {
+  const filtered = templates.filter((t) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
       t.title.toLowerCase().includes(q) ||
-      t.tests.some((n) => n.toLowerCase().includes(q))
+      t.tests.some((n) => n.text.toLowerCase().includes(q))
     );
   });
 
@@ -10771,7 +10607,7 @@ function InsertTestTemplateModal({
                           •
                         </span>
                       )}
-                      {name}
+                      {name.text}
                     </Fragment>
                   ))}
                 </p>
@@ -13678,100 +13514,26 @@ function ManageDiagnosisModal({ onClose }: { onClose: () => void }) {
 
 // ── Insert Template (Advice) Modal ────────────────────────
 
-export type AdviceTemplate = {
-  id: string;
-  title: string;
-  advices: string[];
-};
 
-const MOCK_TEMPLATES: AdviceTemplate[] = [
-  {
-    id: "t1",
-    title: "Hypertension post-visit",
-    advices: [
-      "লবণ খাওয়া কমান",
-      "নির্ধারিত সময়ে নিয়মিত ওষুধ সেবন করুন",
-      "সপ্তাহে অন্তত একবার রক্তচাপ পরীক্ষা করুন",
-      "প্রতিদিন ৩০ মিনিট হাঁটুন",
-    ],
-  },
-  {
-    id: "t2",
-    title: "Diabetes follow-up",
-    advices: [
-      "নিয়মিত রক্তে চিনির মাত্রা পরীক্ষা করুন",
-      "মিষ্টি ও ভাজা খাবার এড়িয়ে চলুন",
-      "৩ মাস পর HbA1c পুনরায় পরীক্ষা করান",
-      "প্রতিদিন পায়ের পরিচ্ছন্নতা বজায় রাখুন",
-      "সঙ্গে গ্লুকোজ ট্যাবলেট রাখুন",
-    ],
-  },
-  {
-    id: "t3",
-    title: "Pediatric fever — home care",
-    advices: [
-      "হালকা গরম পানিতে স্পঞ্জ করে দিন",
-      "প্রতি ৪ ঘণ্টায় প্যারাসিটামল দিন",
-      "শিশুকে পর্যাপ্ত তরল পান করান",
-    ],
-  },
-  {
-    id: "t4",
-    title: "Post-surgery wound care",
-    advices: [
-      "ক্ষতস্থান পরিষ্কার ও শুকনো রাখুন",
-      "প্রতি ২৪ ঘণ্টায় ব্যান্ডেজ পরিবর্তন করুন",
-      "ফোলা, লাল ভাব বা পুঁজ দেখলে সঙ্গে সঙ্গে জানান",
-      "ভারী কাজ এড়িয়ে চলুন",
-    ],
-  },
-  {
-    id: "t5",
-    title: "Migraine management",
-    advices: [
-      "একটি ট্রিগার ডায়েরি রাখুন",
-      "নিয়মিত ঘুমের সময় মেনে চলুন",
-      "অতিরিক্ত আলো, শব্দ ও মানসিক চাপ এড়িয়ে চলুন",
-    ],
-  },
-  {
-    id: "t6",
-    title: "Pregnancy — first trimester",
-    advices: [
-      "প্রতিদিন আয়রন ও ফলিক অ্যাসিড খান",
-      "কাঁচা বা অর্ধসিদ্ধ খাবার এড়িয়ে চলুন",
-      "শুধুমাত্র হালকা ব্যায়াম করুন",
-      "রক্তপাত হলে তৎক্ষণাৎ চিকিৎসকের পরামর্শ নিন",
-      "আয়রনসমৃদ্ধ খাবার নিয়মিত খান",
-      "পর্যাপ্ত পানি পান করুন",
-    ],
-  },
-  {
-    id: "t7",
-    title: "Antibiotic course completion",
-    advices: [
-      "সম্পূর্ণ কোর্স শেষ করুন",
-      "কোনো ডোজ বাদ দেবেন না",
-    ],
-  },
-];
 
 function InsertTemplateModal({
   onClose,
   onInsert,
   onOpenManage,
+  templates,
 }: {
   onClose: () => void;
   onInsert: (t: AdviceTemplate) => void;
   onOpenManage: () => void;
+  templates: AdviceTemplate[];
 }) {
   const [search, setSearch] = useState("");
 
-  const filtered = MOCK_TEMPLATES.filter((t) => {
+  const filtered = templates.filter((t) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return t.title.toLowerCase().includes(q) ||
-      t.advices.some((a) => a.toLowerCase().includes(q));
+      t.advice.some((a) => a.bn.toLowerCase().includes(q));
   });
 
   const scrollbarCss = `
@@ -13858,14 +13620,14 @@ function InsertTemplateModal({
                     className="text-[11px] font-bold uppercase tracking-[0.4px] shrink-0 rounded-[3px]"
                     style={{ background: "#eef0f4", color: "#5a6070", padding: "2px 6px" }}
                   >
-                    {t.advices.length} advices
+                    {t.advice.length} advices
                   </span>
                 </div>
                 <p
                   className="text-[14px] leading-[1.6]"
                   style={{ color: "#5a6070", fontFamily: "Kalpurush, sans-serif" }}
                 >
-                  {t.advices.map((adv, i) => (
+                  {t.advice.map((adv, i) => (
                     <Fragment key={i}>
                       {i > 0 && (
                         <span
@@ -13880,7 +13642,7 @@ function InsertTemplateModal({
                           •
                         </span>
                       )}
-                      {adv}
+                      {adv.bn}
                     </Fragment>
                   ))}
                 </p>
@@ -15287,6 +15049,41 @@ export default function PrescriptionApp({ token }: { token: string }) {
   const savedMedications = draft?.medications ?? EMPTY_MEDICATIONS;
   const setMedications = (v: Medication[] | ((p: Medication[]) => Medication[])) =>
     updateDraft({ medications: typeof v === "function" ? v(draft?.medications ?? []) : v });
+
+  // ── Templates (DR-027) ────────────────────────────────────
+  const templates = sutState.templates;
+  const addTemplate = <K extends keyof typeof templates>(
+    kind: K,
+    entry: (typeof templates)[K][number],
+  ) =>
+    setSutState((prev) => ({
+      ...prev,
+      templates: { ...prev.templates, [kind]: [...prev.templates[kind], entry] },
+    }));
+
+  // Every inserted row gets a fresh id — template ids are never reused.
+  const reId = <T extends { id: string }>(rows: T[]): T[] =>
+    rows.map((r) => ({ ...r, id: newRowId() }));
+
+  // What a template captures: all nine sections, never fee/date/visit/patient.
+  const capturePayload = (): TemplatePayload => ({
+    complaints: draft?.complaints ?? [],
+    history: draft?.history ?? [],
+    drugHistory: draft?.drugHistory ?? [],
+    vitals: draft?.vitals ?? {
+      pulse: "", bp: "", temperature: "", respRate: "", spo2: "", weight: "", height: "",
+    },
+    diagnoses: draft?.diagnoses ?? [],
+    medications: draft?.medications ?? [],
+    tests: draft?.tests ?? [],
+    advice: draft?.advice ?? [],
+    followUp: draft?.followUp ?? { mode: "After", amount: "7", unit: "Days", date: "" },
+    referTo: draft?.referTo ?? "",
+  });
+
+  const countPayload = (pl: TemplatePayload) =>
+    pl.complaints.length + pl.history.length + pl.drugHistory.length +
+    pl.diagnoses.length + pl.medications.length + pl.tests.length + pl.advice.length;
   type AdviceRow = SavedAdvice & { id: string };
   const savedTests = draft?.tests ?? EMPTY_ROWS;
   const setSavedTests = (v: SutListRow[] | ((p: SutListRow[]) => SutListRow[])) =>
@@ -16435,11 +16232,13 @@ export default function PrescriptionApp({ token }: { token: string }) {
         {showSaveAdviceTemplate && (
           <SaveAdviceTemplateModal
             onClose={() => setShowSaveAdviceTemplate(false)}
-            onSave={() => {
+            onSave={(title) => {
+              const advice = draft?.advice ?? [];
+              addTemplate("advice", { id: newRowId(), title, advice });
               setShowSaveAdviceTemplate(false);
               setToast({
                 title: "Template saved",
-                description: "Your new advice template is now available in the library.",
+                description: `"${title}" saved with ${advice.length} advice ${advice.length === 1 ? "entry" : "entries"}.`,
               });
             }}
           />
@@ -16449,23 +16248,28 @@ export default function PrescriptionApp({ token }: { token: string }) {
         {showSaveTestTemplate && (
           <SaveTestTemplateModal
             onClose={() => setShowSaveTestTemplate(false)}
-            onSave={() => {
+            onSave={(title) => {
+              const tests = draft?.tests ?? [];
+              addTemplate("test", { id: newRowId(), title, tests });
               setShowSaveTestTemplate(false);
               setToast({
                 title: "Template saved",
-                description: "Your new test template is now available in the library.",
+                description: `"${title}" saved with ${tests.length} ${tests.length === 1 ? "test" : "tests"}.`,
               });
             }}
           />
         )}
         {showInsertTreatmentTemplate && (
           <InsertTreatmentTemplateModal
+            templates={templates.treatment}
             onClose={() => setShowInsertTreatmentTemplate(false)}
             onInsert={(t) => {
+              const medications = reId(t.medications);
+              updateDraft({ medications });
               setShowInsertTreatmentTemplate(false);
               setToast({
                 title: "Template inserted",
-                description: `${t.medicines.length} medicines from "${t.title}" added to the prescription.`,
+                description: `${medications.length} ${medications.length === 1 ? "medicine" : "medicines"} from "${t.title}" added to the prescription.`,
               });
             }}
             onOpenManage={() => { /* gateway to Manage Templates page */ }}
@@ -16475,11 +16279,13 @@ export default function PrescriptionApp({ token }: { token: string }) {
         {showSaveTreatmentTemplate && (
           <SaveTreatmentTemplateModal
             onClose={() => setShowSaveTreatmentTemplate(false)}
-            onSave={() => {
+            onSave={(title) => {
+              const medications = draft?.medications ?? [];
+              addTemplate("treatment", { id: newRowId(), title, medications });
               setShowSaveTreatmentTemplate(false);
               setToast({
                 title: "Template saved",
-                description: "Your new treatment template is now available in the library.",
+                description: `"${title}" saved with ${medications.length} ${medications.length === 1 ? "medicine" : "medicines"}.`,
               });
             }}
           />
@@ -16487,11 +16293,13 @@ export default function PrescriptionApp({ token }: { token: string }) {
         {showSaveOverallTemplate && (
           <SaveOverallTemplateModal
             onClose={() => setShowSaveOverallTemplate(false)}
-            onSave={() => {
+            onSave={(title) => {
+              const payload = capturePayload();
+              addTemplate("overall", { id: newRowId(), title, payload });
               setShowSaveOverallTemplate(false);
               setToast({
                 title: "Overall template saved",
-                description: "The full prescription is now available as a reusable template.",
+                description: `"${title}" saved with ${countPayload(payload)} entries across the prescription.`,
               });
             }}
           />
@@ -16504,10 +16312,26 @@ export default function PrescriptionApp({ token }: { token: string }) {
         )}
         {showInsertOverallTemplate && (
           <InsertOverallTemplateModal
+            templates={templates.overall}
             onClose={() => setShowInsertOverallTemplate(false)}
             onInsert={(t) => {
+              // Overall replaces all nine sections. Vitals and follow-up are
+              // overwritten by the template's values (DR-027).
+              const pl = t.payload;
+              updateDraft({
+                complaints: reId(pl.complaints),
+                history: reId(pl.history),
+                drugHistory: reId(pl.drugHistory),
+                vitals: { ...pl.vitals },
+                diagnoses: reId(pl.diagnoses),
+                medications: reId(pl.medications),
+                tests: reId(pl.tests),
+                advice: reId(pl.advice),
+                followUp: { ...pl.followUp },
+                referTo: pl.referTo,
+              });
               setShowInsertOverallTemplate(false);
-              const total = t.chief.length + t.treatment.length + t.tests.length + t.advice.length;
+              const total = countPayload(pl);
               setToast({
                 title: "Template inserted",
                 description: `${total} item${total === 1 ? "" : "s"} from "${t.title}" added to the prescription.`,
@@ -16518,12 +16342,15 @@ export default function PrescriptionApp({ token }: { token: string }) {
         )}
         {showInsertTestTemplate && (
           <InsertTestTemplateModal
+            templates={templates.test}
             onClose={() => setShowInsertTestTemplate(false)}
             onInsert={(t) => {
+              const tests = reId(t.tests);
+              updateDraft({ tests });
               setShowInsertTestTemplate(false);
               setToast({
                 title: "Template inserted",
-                description: `${t.tests.length} tests from "${t.title}" added to the prescription.`,
+                description: `${tests.length} ${tests.length === 1 ? "test" : "tests"} from "${t.title}" added to the prescription.`,
               });
             }}
             onOpenManage={() => { /* gateway to Manage Templates page */ }}
@@ -16531,12 +16358,15 @@ export default function PrescriptionApp({ token }: { token: string }) {
         )}
         {showInsertAdviceTemplate && (
           <InsertTemplateModal
+            templates={templates.advice}
             onClose={() => setShowInsertAdviceTemplate(false)}
             onInsert={(t) => {
+              const advice = reId(t.advice);
+              updateDraft({ advice });
               setShowInsertAdviceTemplate(false);
               setToast({
                 title: "Template inserted",
-                description: `${t.advices.length} advices from "${t.title}" added to the prescription.`,
+                description: `${advice.length} advice ${advice.length === 1 ? "entry" : "entries"} from "${t.title}" added to the prescription.`,
               });
             }}
             onOpenManage={() => {

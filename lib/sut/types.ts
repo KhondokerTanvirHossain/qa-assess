@@ -11,10 +11,6 @@ import type {
   V2FieldType,
   AdviceLibEntry,
   SavedAdvice,
-  OverallTemplate,
-  TreatmentTemplate,
-  TestTemplate,
-  AdviceTemplate,
 } from "@/components/sut/PrescriptionApp";
 import { TEST_LIBRARY, DIAGNOSIS_LIBRARY } from "@/components/sut/PrescriptionApp";
 
@@ -25,10 +21,6 @@ export type {
   V2FieldType,
   AdviceLibEntry,
   SavedAdvice,
-  OverallTemplate,
-  TreatmentTemplate,
-  TestTemplate,
-  AdviceTemplate,
 };
 
 /** A list row that owns a stable id. Ids are generated on add, live for the
@@ -76,6 +68,26 @@ export type Prescription = {
   status: "draft" | "completed";
   completedAt: string | null;
 };
+
+/** Everything a template carries. Fee, date, visit type and the patient are
+ *  deliberately excluded — they are visit-specific, not reusable (DR-027). */
+export type TemplatePayload = {
+  complaints: Prescription["complaints"];
+  history: Prescription["history"];
+  drugHistory: Prescription["drugHistory"];
+  vitals: Prescription["vitals"];
+  diagnoses: Prescription["diagnoses"];
+  medications: Medication[];
+  tests: Prescription["tests"];
+  advice: Prescription["advice"];
+  followUp: Prescription["followUp"];
+  referTo: string;
+};
+
+export type OverallTemplate = { id: string; title: string; payload: TemplatePayload };
+export type TreatmentTemplate = { id: string; title: string; medications: Medication[] };
+export type TestTemplate = { id: string; title: string; tests: Prescription["tests"] };
+export type AdviceTemplate = { id: string; title: string; advice: Prescription["advice"] };
 
 export type SutState = {
   patients: PatientPick[];
