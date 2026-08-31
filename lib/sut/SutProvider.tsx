@@ -32,6 +32,14 @@ type SutContextValue = {
   updateDraft: (patch: Partial<Prescription>) => void;
   /** Commits the working draft to persisted state. */
   saveDraft: () => void;
+  /** Completes the draft: stamps completedAt, moves it into completed[] and
+   *  clears the draft slot. Permanent — a completed prescription is read-only
+   *  (DR-009). Returns the completed record. */
+  completeDraft: () => Prescription | null;
+  /** Opens a fresh draft for the patient, leaving completed[] untouched.
+   *  Takes the visit type directly: updateDraft would be refused in the same
+   *  tick, because the guard still sees the completed prescription. */
+  startNewVisit: (patientId: string, visitType?: string) => void;
   /** Creates a new draft for the patient, or restores the stored one. */
   loadDraftFor: (patientId: string) => void;
 };
@@ -122,20 +130,29 @@ export function SutProvider({
   }, [state]);
 
   const loadDraftFor = useCallback((patientId: string) => {
-    const stored = stateRef.current.prescriptions[patientId]?.draft ?? null;
-    setDraft(stored ?? createDraft(patientId));
+    const slot = stateRef.current.prescriptions[patientId];
+    // An open draft wins. Otherwise show the most recent completed
+    // prescription — read-only — so completion survives reload (DR-009).
+    const latestCompleted = slot?.completed.length
+      ? slot.completed[slot.completed.length - 1]
+      : null;
+    setDraft(slot?.draft ?? latestCompleted ?? createDraft(patientId));
     setIsDirty(false);
-  }, []);
-
-  const updateDraft = useCallback((patch: Partial<Prescription>) => {
-    setDraft((prev) => (prev === null ? prev : { ...prev, ...patch }));
-    setIsDirty(true);
   }, []);
 
   const draftRef = useRef(draft);
   useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
+
+  const updateDraft = useCallback((patch: Partial<Prescription>) => {
+    // A completed prescription is permanently read-only (DR-009). The CSS lock
+    // stops a user reaching the fields; this stops anything else — the state
+    // layer is the authority, not the styling.
+    if (draftRef.current?.status === "completed") return;
+    setDraft((prev) => (prev === null ? prev : { ...prev, ...patch }));
+    setIsDirty(true);
+  }, []);
 
   const saveDraft = useCallback(() => {
     const current = draftRef.current;
@@ -153,9 +170,45 @@ export function SutProvider({
     setIsDirty(false);
   }, []);
 
+  const completeDraft = useCallback((): Prescription | null => {
+    const current = draftRef.current;
+    if (current === null) return null;
+    const done: Prescription = {
+      ...current,
+      status: "completed",
+      completedAt: new Date().toISOString(),
+    };
+    setState((prev) => {
+      const slot = prev.prescriptions[done.patientId];
+      return {
+        ...prev,
+        prescriptions: {
+          ...prev.prescriptions,
+          [done.patientId]: {
+            draft: null,
+            completed: [...(slot?.completed ?? []), done],
+          },
+        },
+      };
+    });
+    setDraft(done);
+    setIsDirty(false);
+    return done;
+  }, []);
+
+  const startNewVisit = useCallback((patientId: string, visitType = "") => {
+    const prior = stateRef.current.prescriptions[patientId]?.completed.length ?? 0;
+    const fresh = createDraft(patientId);
+    // Every visit type increments the count (DR-009).
+    const next = { ...fresh, visitNumber: prior + 1, visitType };
+    draftRef.current = next;
+    setDraft(next);
+    setIsDirty(false);
+  }, []);
+
   const value = useMemo<SutContextValue>(
-    () => ({ state, setState, draft, isDirty, updateDraft, saveDraft, loadDraftFor }),
-    [state, draft, isDirty, updateDraft, saveDraft, loadDraftFor],
+    () => ({ state, setState, draft, isDirty, updateDraft, saveDraft, loadDraftFor, completeDraft, startNewVisit }),
+    [state, draft, isDirty, updateDraft, saveDraft, loadDraftFor, completeDraft, startNewVisit],
   );
 
   return <SutContext.Provider value={value}>{children}</SutContext.Provider>;

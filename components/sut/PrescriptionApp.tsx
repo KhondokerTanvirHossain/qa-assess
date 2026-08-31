@@ -6,6 +6,7 @@ import { useSut } from "@/lib/sut/SutProvider";
 import type {
   ListRow as SutListRow,
   Medication,
+  Prescription,
   TemplatePayload,
   OverallTemplate,
   TreatmentTemplate,
@@ -13596,6 +13597,206 @@ function ManageDiagnosisModal({
   );
 }
 
+// ── Prescription Preview Modal (DR-006) ───────────────────
+// HTML A4 at 210×297mm inside the file's standard modal shell. No PDF is
+// generated: no client-side PDF library shapes Indic script, and the
+// prescription is roughly half Bangla. Download calls window.print().
+
+// Bars derived from the patient code. Cosmetic — it does not need to scan.
+function CodeBarcode({ code }: { code: string }) {
+  const bars: { x: number; w: number }[] = [];
+  let x = 0;
+  for (let i = 0; i < code.length; i++) {
+    const c = code.charCodeAt(i);
+    for (let k = 0; k < 3; k++) {
+      const w = ((c >> k) & 1) === 1 ? 2 : 1;
+      bars.push({ x, w });
+      x += w + 1;
+    }
+  }
+  return (
+    <svg width={x} height={34} viewBox={`0 0 ${x} 34`} style={{ display: "block" }}>
+      {bars.map((b, i) => (
+        <rect key={i} x={b.x} y={0} width={b.w} height={34} fill="#0F100F" />
+      ))}
+    </svg>
+  );
+}
+
+const PREVIEW_DATE = (iso: string) => {
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${String(d.getDate()).padStart(2, "0")} ${MON[d.getMonth()]}, ${d.getFullYear()}`;
+};
+
+function PrescriptionPreviewModal({
+  onClose,
+  rx,
+  patient,
+}: {
+  onClose: () => void;
+  rx: Prescription;
+  patient: PatientRecord;
+}) {
+  const printCss = `
+    @media print {
+      body * { visibility: hidden !important; }
+      #rx-a4, #rx-a4 * { visibility: visible !important; }
+      #rx-a4 {
+        position: absolute !important;
+        left: 0 !important; top: 0 !important;
+        margin: 0 !important; box-shadow: none !important;
+      }
+      @page { size: A4; margin: 0; }
+    }
+  `;
+  const has = (n: number) => n > 0;
+  return createPortal(
+    <div
+      data-module="preview"
+      className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]"
+      style={{ background: "rgba(0,0,0,0.45)" }}
+    >
+      <style dangerouslySetInnerHTML={{ __html: printCss }} />
+      <div className="w-[794px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: 720, maxHeight: "calc(100vh - 32px)" }}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-[20px] py-[10px] shrink-0" style={{ background: "#358C11" }}>
+          <span className="text-[15px] font-semibold text-white">Prescription Preview</span>
+          <button onClick={onClose} className="flex items-center justify-center w-[28px] h-[28px] rounded-[6px] text-white border-none cursor-pointer" style={{ background: "rgba(255,255,255,0.15)" }}>
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Scrollable A4 sheet */}
+        <div className="flex-1 min-h-0 overflow-auto flex justify-center" style={{ background: "#eef0f4", padding: 16 }}>
+          <div
+            id="rx-a4"
+            className="bg-white shrink-0"
+            style={{ width: "210mm", height: "297mm", boxShadow: "0 2px 12px rgba(6,66,50,0.12)" }}
+          >
+            {/* Top third left blank — pre-printed letterhead space. */}
+            <div style={{ height: "99mm" }} />
+
+            <div className="flex" style={{ height: "198mm" }}>
+              {/* LEFT COLUMN */}
+              <div className="flex flex-col gap-[14px]" style={{ width: "68mm", padding: "0 6mm", borderRight: "1px solid #c2c2c2" }}>
+                <div className="flex items-center gap-[10px]">
+                  <div className="flex items-center justify-center rounded-full shrink-0" style={{ width: 44, height: 44, background: "#eaf5e3" }}>
+                    <span className="text-[15px] font-bold" style={{ color: "#358C11" }}>{patient.initials}</span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[14px] font-bold text-[#0F100F] truncate">{patient.name}</span>
+                    <span className="text-[12px] text-[#5a6070]">{patient.age}{patient.sex ? ` · ${patient.sex}` : ""}</span>
+                  </div>
+                </div>
+
+                {has(rx.complaints.length) && (
+                  <div className="flex flex-col gap-[3px]">
+                    <span className="text-[12px] font-bold text-[#064232]">C/C</span>
+                    {rx.complaints.map((c) => (
+                      <div key={c.id} className="flex flex-col">
+                        <span className="text-[13px] text-[#0F100F]">{c.text}</span>
+                        {c.remark ? <span className="text-[11px] text-[#5a6070]" style={{ paddingLeft: 10 }}>{c.remark}</span> : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {has(rx.history.length) && (
+                  <div className="flex flex-col gap-[3px]">
+                    <span className="text-[12px] font-bold text-[#064232]">H/O</span>
+                    {rx.history.map((h) => (
+                      <div key={h.id} className="flex flex-col">
+                        <span className="text-[13px] text-[#0F100F]">{h.text}</span>
+                        {h.remark ? <span className="text-[11px] text-[#5a6070]" style={{ paddingLeft: 10 }}>{h.remark}</span> : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {has(rx.diagnoses.length) && (
+                  <div className="flex flex-col gap-[3px]">
+                    <span className="text-[12px] font-bold text-[#064232]">Diagnosis</span>
+                    {rx.diagnoses.map((d) => (
+                      <span key={d.id} className="text-[13px] text-[#0F100F]">{d.text}</span>
+                    ))}
+                  </div>
+                )}
+
+                {has(rx.tests.length) && (
+                  <div className="flex flex-col gap-[3px]">
+                    <span className="text-[12px] font-bold text-[#064232]">Tests</span>
+                    {rx.tests.map((t, i) => (
+                      <span key={t.id} className="text-[13px] text-[#0F100F]">{i + 1}. {t.text}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT COLUMN */}
+              <div className="flex flex-col gap-[14px] flex-1 min-w-0" style={{ padding: "0 6mm" }}>
+                <div className="flex flex-col gap-[2px]">
+                  <CodeBarcode code={patient.id || "PT-000000"} />
+                  <span className="text-[11px] text-[#5a6070]">{patient.id}</span>
+                </div>
+                <div className="flex flex-col gap-[2px]">
+                  {rx.visitType ? <span className="text-[12px] text-[#0F100F]">Visit: {rx.visitType}</span> : null}
+                  <span className="text-[12px] text-[#0F100F]">Date: {PREVIEW_DATE(rx.date)}</span>
+                </div>
+
+                {has(rx.medications.length) && (
+                  <div className="flex flex-col gap-[6px]">
+                    <span className="text-[18px] font-bold text-[#064232]">Rx</span>
+                    {rx.medications.map((m, i) => (
+                      <div key={m.id} className="flex flex-col">
+                        <span className="text-[13px] text-[#0F100F]">{i + 1}. {m.medicine}</span>
+                        {m.typeText ? (
+                          <span className="text-[13px] text-[#0F100F] font-[Kalpurush]" style={{ paddingLeft: 14 }}>{m.typeText}</span>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {has(rx.advice.length) && (
+                  <div className="flex flex-col gap-[3px]">
+                    <span className="text-[12px] font-bold text-[#064232]">Advice</span>
+                    {rx.advice.map((a) => (
+                      <span key={a.id} className="text-[13px] text-[#0F100F] font-[Kalpurush]">{a.bn}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-[10px] px-[18px] py-[12px] shrink-0" style={{ borderTop: "1px solid #eef0f4", background: "#fafbfc" }}>
+          <button
+            onClick={onClose}
+            className="px-[18px] h-[36px] rounded-[8px] text-[14px] font-semibold cursor-pointer bg-transparent"
+            style={{ color: "#5a6070", border: "1px solid #e3e6eb" }}
+          >
+            Close
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-[6px] px-[22px] h-[36px] rounded-[8px] text-[14px] font-semibold text-white cursor-pointer border-none"
+            style={{ background: "#358C11" }}
+          >
+            <FileDown size={14} />
+            Download
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 // ── Insert Template (Advice) Modal ────────────────────────
 
 
@@ -15118,6 +15319,8 @@ export default function PrescriptionApp({ token }: { token: string }) {
     updateDraft,
     saveDraft,
     loadDraftFor,
+    completeDraft,
+    startNewVisit,
   } = useSut();
   void token;
   // The six section arrays live on the draft. These accessors keep the
@@ -15407,6 +15610,20 @@ export default function PrescriptionApp({ token }: { token: string }) {
   // picks a row in the demographic search panel; this populates the v2-style
   // demographic bar and ungates the rest of the page.
   const [patient, setPatient] = useState<PatientRecord>(EMPTY_PATIENT);
+  // A completed prescription is permanently read-only (DR-009). The lock
+  // reuses the dimming the no-patient gate already applies to the same
+  // wrapper, so no new disabled styling is introduced.
+  const [showPreview, setShowPreview] = useState(false);
+  const isCompleted = draft?.status === "completed";
+
+  // Visit options come from the patient's completed count — every visit type
+  // increments (DR-009). The prototype hardcoded three options.
+  const completedCount = patient.id
+    ? (sutState.prescriptions[patient.id]?.completed.length ?? 0)
+    : 0;
+  const visitTotal = completedCount + (isCompleted ? 0 : 1);
+  const visitOptions = Array.from({ length: visitTotal }, (_, i) => `Visit ${visitTotal - i}/${visitTotal}`);
+
   const [demoSearch, setDemoSearch] = useState("");
   // Demographic search dropdown — opens on click/focus, shows a hint line
   // + divider + "New Patient" CTA. Anchored to the search box via portal.
@@ -15549,7 +15766,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
           <div style={{ width: 96 }}>
             <ToolbarDropdown
               value={visit}
-              options={["Visit 3/3", "Visit 2/3", "Visit 1/3"]}
+              options={visitOptions}
               onChange={setVisit}
               placeholder="Visit No."
             />
@@ -15562,7 +15779,19 @@ export default function PrescriptionApp({ token }: { token: string }) {
             <ToolbarDropdown
               value={visitType}
               options={["New Visit", "Follow up", "Report"]}
-              onChange={(v) => { setVisitType(v); updateDraft({ visitType: v }); }}
+              onChange={(v) => {
+                // Selecting a visit type on a completed prescription opens a
+                // fresh draft for the same patient; the count increments for
+                // every type (DR-009).
+                if (isCompleted && patient.id) {
+                  startNewVisit(patient.id, v);
+                  setVisit(`Visit ${completedCount + 1}/${completedCount + 1}`);
+                  setVisitType(v);
+                  return;
+                }
+                setVisitType(v);
+                updateDraft({ visitType: v });
+              }}
               placeholder="Visit type"
             />
           </div>
@@ -15690,7 +15919,14 @@ export default function PrescriptionApp({ token }: { token: string }) {
             <Save size={14} className="text-white" />
             <span className="text-[13px] font-medium text-white">Save</span>
           </button>
-          <button className="flex items-center gap-[5px] px-[12px] h-[28px] rounded-[6px]" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}>
+          <button
+            onClick={() => {
+              if (draft === null) return;
+              // Already completed — reopen the preview without re-completing.
+              if (!isCompleted) completeDraft();
+              setShowPreview(true);
+            }}
+            className="flex items-center gap-[5px] px-[12px] h-[28px] rounded-[6px]" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}>
             <Eye size={14} className="text-white" />
             <span className="text-[13px] font-medium text-white">Preview & Complete</span>
           </button>
@@ -15938,7 +16174,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
           through, so the white input fields sit on grey. */}
       <div
         className={`flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${
-          patient.name === "" ? "opacity-50 pointer-events-none select-none" : ""
+          patient.name === "" || isCompleted ? "opacity-50 pointer-events-none select-none" : ""
         }`}
         style={{ background: "#f4f6f9" }}
       >
@@ -16545,6 +16781,13 @@ export default function PrescriptionApp({ token }: { token: string }) {
                 description: `"${title}" saved with ${countPayload(payload)} entries across the prescription.`,
               });
             }}
+          />
+        )}
+        {showPreview && draft && (
+          <PrescriptionPreviewModal
+            rx={draft}
+            patient={patient}
+            onClose={() => setShowPreview(false)}
           />
         )}
         {showPatientDetails && (
