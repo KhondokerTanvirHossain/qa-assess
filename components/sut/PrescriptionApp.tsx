@@ -11023,7 +11023,19 @@ function SchemaNoteField({
   );
 }
 
-function ManageDrugModal({ onClose }: { onClose: () => void }) {
+function ManageDrugModal({
+  onClose,
+  items,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  onClose: () => void;
+  items: DrugItem[];
+  onAdd: (d: DrugItem) => void;
+  onEdit: (id: string, patch: Partial<DrugItem>) => void;
+  onDelete: (id: string) => void;
+}) {
   const [activeTab, setActiveTab] = useState<"all" | "mine">("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -11062,7 +11074,7 @@ function ManageDrugModal({ onClose }: { onClose: () => void }) {
   const [classOpen, setClassOpen] = useState(false);
   const [mfgOpen, setMfgOpen] = useState(false);
 
-  const filtered = MOCK_DRUGS.filter((d) => {
+  const filtered = items.filter((d) => {
     if (activeTab === "mine" && !d.isMine) return false;
     if (!search) return true;
     const q = search.toLowerCase();
@@ -11078,7 +11090,7 @@ function ManageDrugModal({ onClose }: { onClose: () => void }) {
     );
   });
 
-  const selected = selectedId ? MOCK_DRUGS.find((d) => d.id === selectedId) : null;
+  const selected = selectedId ? items.find((d) => d.id === selectedId) : null;
 
   const resetForm = () => {
     setFormGeneric("");
@@ -11107,6 +11119,7 @@ function ManageDrugModal({ onClose }: { onClose: () => void }) {
               strength: d.strength,
               doseShort: d.doseShort ?? "",
               doseBn: d.doseBn ?? "",
+              schemaValues: d.schemaValues,
             }))
           : [emptyDose()],
       );
@@ -11147,7 +11160,7 @@ function ManageDrugModal({ onClose }: { onClose: () => void }) {
   const canSave = mode === "edit" ? editHasChanges : addIsValid;
 
   const confirmTarget = confirmDeleteFor
-    ? MOCK_DRUGS.find((d) => d.id === confirmDeleteFor)
+    ? items.find((d) => d.id === confirmDeleteFor)
     : null;
   const confirmDoseTarget = confirmDeleteDoseFor && selected
     ? selected.doses.find((d) => d.id === confirmDeleteDoseFor)
@@ -11762,7 +11775,43 @@ function ManageDrugModal({ onClose }: { onClose: () => void }) {
                     Cancel
                   </button>
                   <button
-                    onClick={cancelForm}
+                    onClick={() => {
+                      // Every collected field is stored. A drug added here gets
+                      // DEFAULT_EMPTY_SCHEMA, matching the free-text fallback.
+                      const doses: DrugDose[] = formDoses.map((d) => ({
+                        id: d.id,
+                        doseForm: d.doseForm,
+                        strength: d.strength,
+                        doseShort: d.doseShort,
+                        doseBn: d.doseBn,
+                        schemaValues: d.schemaValues,
+                      }));
+                      if (mode === "add") {
+                        const id = `drg-${Date.now().toString(36)}`;
+                        onAdd({
+                          id,
+                          brandName: formBrand,
+                          genericName: formGeneric,
+                          drugClass: formClass,
+                          manufacturer: formManufacturer,
+                          doses,
+                          isMine: true,
+                          schema: [...DEFAULT_EMPTY_SCHEMA],
+                          defaults: doses[0]?.schemaValues,
+                        });
+                        setSelectedId(id);
+                      } else if (selected) {
+                        onEdit(selected.id, {
+                          brandName: formBrand,
+                          genericName: formGeneric,
+                          drugClass: formClass,
+                          manufacturer: formManufacturer,
+                          doses,
+                          defaults: doses[0]?.schemaValues ?? selected.defaults,
+                        });
+                      }
+                      setMode("view");
+                    }}
                     disabled={!canSave}
                     className="px-[22px] h-[36px] rounded-[8px] text-[14px] font-semibold text-white border-none"
                     style={{
@@ -11840,6 +11889,7 @@ function ManageDrugModal({ onClose }: { onClose: () => void }) {
                 </button>
                 <button
                   onClick={() => {
+                    if (confirmDeleteFor) onDelete(confirmDeleteFor);
                     setConfirmDeleteFor(null);
                     setSelectedId(null);
                     setMode("view");
@@ -13071,7 +13121,19 @@ export const MOCK_DIAGNOSES: DiagnosisItem[] = [
   { id: "dx8", name: "Seasonal rhinitis (Bangladesh)", code: "J30.2", codeType: "ICD-10", description: "Winter-season allergic rhinitis pattern observed locally; triggered by dust and pollen.", isMine: true },
 ];
 
-function ManageDiagnosisModal({ onClose }: { onClose: () => void }) {
+function ManageDiagnosisModal({
+  onClose,
+  items,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  onClose: () => void;
+  items: DiagnosisItem[];
+  onAdd: (d: DiagnosisItem) => void;
+  onEdit: (id: string, patch: Partial<DiagnosisItem>) => void;
+  onDelete: (id: string) => void;
+}) {
   const [activeTab, setActiveTab] = useState<"all" | "mine">("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -13085,7 +13147,7 @@ function ManageDiagnosisModal({ onClose }: { onClose: () => void }) {
   const [formDesc, setFormDesc] = useState("");
   const [codeTypeOpen, setCodeTypeOpen] = useState(false);
 
-  const filtered = MOCK_DIAGNOSES.filter((d) => {
+  const filtered = items.filter((d) => {
     if (activeTab === "mine" && !d.isMine) return false;
     if (!search) return true;
     const q = search.toLowerCase();
@@ -13097,7 +13159,7 @@ function ManageDiagnosisModal({ onClose }: { onClose: () => void }) {
     );
   });
 
-  const selected = selectedId ? MOCK_DIAGNOSES.find((d) => d.id === selectedId) : null;
+  const selected = selectedId ? items.find((d) => d.id === selectedId) : null;
 
   const startAdd = () => {
     setMode("add");
@@ -13128,7 +13190,7 @@ function ManageDiagnosisModal({ onClose }: { onClose: () => void }) {
   const canSave = mode === "edit" ? editHasChanges : addIsValid;
 
   const confirmTarget = confirmDeleteFor
-    ? MOCK_DIAGNOSES.find((d) => d.id === confirmDeleteFor)
+    ? items.find((d) => d.id === confirmDeleteFor)
     : null;
 
   const scrollbarCss = `
@@ -13468,7 +13530,28 @@ function ManageDiagnosisModal({ onClose }: { onClose: () => void }) {
                     Cancel
                   </button>
                   <button
-                    onClick={cancelForm}
+                    onClick={() => {
+                      if (mode === "add") {
+                        const id = `dx-${Date.now().toString(36)}`;
+                        onAdd({
+                          id,
+                          name: formName,
+                          code: formCode || undefined,
+                          codeType: formCodeType,
+                          description: formDesc || undefined,
+                          isMine: true,
+                        });
+                        setSelectedId(id);
+                      } else if (selected) {
+                        onEdit(selected.id, {
+                          name: formName,
+                          code: formCode || undefined,
+                          codeType: formCodeType,
+                          description: formDesc || undefined,
+                        });
+                      }
+                      setMode("view");
+                    }}
                     disabled={!canSave}
                     className="px-[22px] h-[36px] rounded-[8px] text-[14px] font-semibold text-white border-none"
                     style={{
@@ -13536,6 +13619,7 @@ function ManageDiagnosisModal({ onClose }: { onClose: () => void }) {
                 </button>
                 <button
                   onClick={() => {
+                    if (confirmDeleteFor) onDelete(confirmDeleteFor);
                     setConfirmDeleteFor(null);
                     setSelectedId(null);
                     setMode("view");
@@ -16327,7 +16411,15 @@ export default function PrescriptionApp({ token }: { token: string }) {
             }}
           />
         )}
-        {showManageDiagnosis && <ManageDiagnosisModal onClose={() => setShowManageDiagnosis(false)} />}
+        {showManageDiagnosis && (
+          <ManageDiagnosisModal
+            onClose={() => setShowManageDiagnosis(false)}
+            items={libraries.diagnoses}
+            onAdd={(d) => libAdd("diagnoses", d)}
+            onEdit={(id, patch) => libEdit("diagnoses", id, patch)}
+            onDelete={(id) => libDelete("diagnoses", id)}
+          />
+        )}
         {showManageTest && <ManageTestModal onClose={() => setShowManageTest(false)} />}
         {showSaveTestTemplate && (
           <SaveTestTemplateModal
@@ -16359,7 +16451,15 @@ export default function PrescriptionApp({ token }: { token: string }) {
             onOpenManage={() => { /* gateway to Manage Templates page */ }}
           />
         )}
-        {showManageDrug && <ManageDrugModal onClose={() => setShowManageDrug(false)} />}
+        {showManageDrug && (
+          <ManageDrugModal
+            onClose={() => setShowManageDrug(false)}
+            items={libraries.drugs}
+            onAdd={(d) => libAdd("drugs", d)}
+            onEdit={(id, patch) => libEdit("drugs", id, patch)}
+            onDelete={(id) => libDelete("drugs", id)}
+          />
+        )}
         {showSaveTreatmentTemplate && (
           <SaveTreatmentTemplateModal
             onClose={() => setShowSaveTreatmentTemplate(false)}
