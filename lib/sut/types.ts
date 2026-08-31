@@ -7,16 +7,23 @@
 import type {
   PatientPick,
   V2MedicineItem,
+  DrugItem,
+  TestItem,
+  DiagnosisItem,
+  AdviceItem,
   V2MedicineForm,
   V2FieldType,
   AdviceLibEntry,
   SavedAdvice,
 } from "@/components/sut/PrescriptionApp";
-import { TEST_LIBRARY, DIAGNOSIS_LIBRARY } from "@/components/sut/PrescriptionApp";
 
 export type {
   PatientPick,
   V2MedicineItem,
+  DrugItem,
+  TestItem,
+  DiagnosisItem,
+  AdviceItem,
   V2MedicineForm,
   V2FieldType,
   AdviceLibEntry,
@@ -31,6 +38,9 @@ export type ListRow = { id: string; text: string };
  *  dose chain sharing the medicine's schema (DR-026). */
 export type Medication = {
   id: string;
+  /** References the library DrugItem this row came from. Absent for free-text
+   *  entries. May dangle if the library entry is later deleted (DR-028). */
+  drugId?: string;
   medicine: string;
   generic: string;
   form?: V2MedicineForm;
@@ -98,11 +108,13 @@ export type SutState = {
       completed: Prescription[];
     }
   >;
+  // Full catalogue records — the Manage modals' own shapes. Consumers derive
+  // their display strings at read time (DR-028).
   libraries: {
-    medicines: V2MedicineItem[];
-    tests: typeof TEST_LIBRARY;
-    diagnoses: typeof DIAGNOSIS_LIBRARY;
-    advice: AdviceLibEntry[];
+    drugs: DrugItem[];
+    tests: TestItem[];
+    diagnoses: DiagnosisItem[];
+    advice: AdviceItem[];
   };
   templates: {
     overall: OverallTemplate[];

@@ -6,12 +6,13 @@
 
 import {
   PATIENT_POOL,
-  MEDICINE_LIBRARY_V2,
-  TEST_LIBRARY,
-  DIAGNOSIS_LIBRARY,
-  ADVICE_LIBRARY,
+  MOCK_DRUGS,
+  MOCK_TESTS,
+  MOCK_DIAGNOSES,
+  MOCK_ADVICES,
+  DEFAULT_EMPTY_SCHEMA,
 } from "@/components/sut/PrescriptionApp";
-import type { Medication, SutState, TemplatePayload } from "./types";
+import type { Medication, SutState, TemplatePayload, V2FieldType } from "./types";
 
 // Seed ids are literals so a fresh fixture is byte-identical every boot.
 // Rows created at runtime get generated ids instead.
@@ -44,11 +45,22 @@ export function createSeedState(): SutState {
   return {
     patients: [...PATIENT_POOL],
     prescriptions: {},
+    // Full catalogue records (DR-028). `schema` is derived from the first
+    // dose's schemaValues keys — that dose is the authority on which form
+    // fields the drug renders. Drugs with no dose detail fall back to the
+    // default schema, matching a free-text entry.
     libraries: {
-      medicines: [...MEDICINE_LIBRARY_V2],
-      tests: [...TEST_LIBRARY],
-      diagnoses: [...DIAGNOSIS_LIBRARY],
-      advice: [...ADVICE_LIBRARY],
+      drugs: MOCK_DRUGS.map((d) => {
+        const keys = Object.keys(d.doses[0]?.schemaValues ?? {}) as V2FieldType[];
+        return {
+          ...d,
+          schema: keys.length > 0 ? keys : [...DEFAULT_EMPTY_SCHEMA],
+          defaults: d.doses[0]?.schemaValues,
+        };
+      }),
+      tests: MOCK_TESTS.map((t) => ({ ...t })),
+      diagnoses: MOCK_DIAGNOSES.map((d) => ({ ...d })),
+      advice: MOCK_ADVICES.map((a) => ({ ...a })),
     },
     templates: {
       overall: [

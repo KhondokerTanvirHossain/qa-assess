@@ -12,8 +12,9 @@ const KEY_PREFIX = "qa-assess:sut:";
 // under a different version is discarded and the caller reseeds — SUT state is
 // disposable per-candidate state (DR-005), so migration is not worth its cost
 // (DR-025). Version 2 introduced stable ids on draft list rows; version 3
-// replaced the lossy template display shapes with TemplatePayload (DR-027).
-const SCHEMA_VERSION = 3;
+// replaced the lossy template display shapes with TemplatePayload (DR-027);
+// version 4 widened libraries to full catalogue records (DR-028).
+const SCHEMA_VERSION = 4;
 
 type Envelope = { version: number; state: SutState };
 

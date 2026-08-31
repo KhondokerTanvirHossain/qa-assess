@@ -17,7 +17,8 @@ import type {
 // blank add-row holds one of these locally until it is promoted.
 type MedicationData = Omit<Medication, "id">;
 
-const EMPTY_MED_SCHEMA: V2FieldType[] = ["DOSAGE_UNIT", "FREQUENCY", "MEAL_TIMING", "DURATION", "NOTE"];
+export const DEFAULT_EMPTY_SCHEMA: V2FieldType[] = ["DOSAGE_UNIT", "FREQUENCY", "MEAL_TIMING", "DURATION", "NOTE"];
+const EMPTY_MED_SCHEMA = DEFAULT_EMPTY_SCHEMA;
 const blankMedication = (): MedicationData => ({
   medicine: "",
   generic: "",
@@ -2803,6 +2804,7 @@ function TreatmentAddRows({
   onAddMedication,
   onDeleteMedication,
   onSeedMedications,
+  drugs,
 }: {
   startingSerial: number;
   mode: "dropdown" | "type";
@@ -2815,6 +2817,7 @@ function TreatmentAddRows({
   onAddMedication: (data: MedicationData) => void;
   onDeleteMedication: (id: string) => void;
   onSeedMedications: (rows: MedicationData[]) => void;
+  drugs: DrugItem[];
 }) {
   // Only the trailing blank add-row is local. It is promoted into the draft
   // the moment a medicine is chosen, and a fresh blank takes its place.
@@ -2831,13 +2834,14 @@ function TreatmentAddRows({
     seededRef.current = demoSeeded;
     if (demoSeeded) {
       onSeedMedications(
-        MEDICINE_LIBRARY_V2.map((m) => ({
-          medicine: v2MedDisplay(m),
-          generic: m.generic ?? "",
-          form: m.form,
-          schema: m.schema,
-          phases: [m.defaults ?? {}],
-          typeText: m.typeText ?? composeTypeText(m.defaults ?? {}),
+        drugs.map((d) => ({
+          drugId: d.id,
+          medicine: drugToDisplay(d),
+          generic: d.genericName ?? "",
+          form: (d.doses[0]?.doseForm?.toLowerCase() as V2MedicineForm | undefined),
+          schema: d.schema,
+          phases: [d.defaults ?? {}],
+          typeText: composeTypeText(d.defaults ?? {}),
         })),
       );
     } else {
@@ -2869,6 +2873,7 @@ function TreatmentAddRows({
             serial={startingSerial + i}
             isLastRow={false}
             mode={mode}
+            drugs={drugs}
             data={m}
             onChange={(patch) => onChangeMedication(m.id, patch)}
             duplicateOf={isDupe ? m.medicine : undefined}
@@ -2891,6 +2896,7 @@ function TreatmentAddRows({
         serial={startingSerial + medications.length}
         isLastRow={total === medications.length + 1}
         mode={mode}
+        drugs={drugs}
         data={blank}
         onChange={(patch) => setBlank((prev) => ({ ...prev, ...patch }))}
         onPicked={(picked) => {
@@ -2915,6 +2921,16 @@ function TreatmentAddRows({
 const v2MedDisplay = (m: { name: string; generic?: string }) =>
   m.generic && m.generic.trim() ? `${m.name} (${m.generic})` : m.name;
 
+// A catalogue drug rendered the way the typeahead and rows show it. Strength
+// comes from the first dose, matching how MEDICINE_LIBRARY_V2 named entries.
+const drugDisplayName = (d: DrugItem) => {
+  const strength = d.doses[0]?.strength;
+  const form = d.doses[0]?.doseForm;
+  const prefix = form ? `${form.slice(0, 3)}. ` : "";
+  return `${prefix}${d.brandName}${strength ? ` ${strength}` : ""}`;
+};
+const drugToDisplay = (d: DrugItem) => v2MedDisplay({ name: drugDisplayName(d), generic: d.genericName });
+
 function TreatmentInputRowV2({
   serial,
   isLastRow,
@@ -2927,6 +2943,7 @@ function TreatmentInputRowV2({
   onChange,
   duplicateOf,
   onDismissDuplicate,
+  drugs,
 }: {
   serial: number;
   isLastRow: boolean;
@@ -2945,11 +2962,11 @@ function TreatmentInputRowV2({
   // Set when an earlier row already carries this medicine.
   duplicateOf?: string;
   onDismissDuplicate?: () => void;
+  drugs: DrugItem[];
 }) {
   // Default schema shown for the empty "Add medication" row so the doctor
   // sees the dropdown placeholders even before picking a medicine. Replaced
   // by the picked medicine's specific schema once they make a selection.
-  const DEFAULT_EMPTY_SCHEMA: V2FieldType[] = ["DOSAGE_UNIT", "FREQUENCY", "MEAL_TIMING", "DURATION", "NOTE"];
 
   // The six data fields now live on the draft (or, for the trailing blank
   // add-row, on its owner's local scratch row). Dose phases: each entry is one
@@ -2982,10 +2999,10 @@ function TreatmentInputRowV2({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const matches = MEDICINE_LIBRARY_V2.filter((m) => {
+  const matches = drugs.filter((m) => {
     const q = medicine.trim().toLowerCase();
     if (!q) return true;
-    return m.name.toLowerCase().includes(q) || (m.generic ?? "").toLowerCase().includes(q);
+    return m.brandName.toLowerCase().includes(q) || (m.genericName ?? "").toLowerCase().includes(q);
   });
 
   useEffect(() => { setHighlight(0); }, [medicine]);
@@ -3020,14 +3037,15 @@ function TreatmentInputRowV2({
     return () => document.removeEventListener("mousedown", handle);
   }, [open]);
 
-  const pickItem = (item: V2MedicineItem) => {
+  const pickItem = (item: DrugItem) => {
     const picked: Partial<MedicationData> = {
-      medicine: v2MedDisplay(item),
-      generic: item.generic ?? "",
-      form: item.form,
+      drugId: item.id,
+      medicine: drugToDisplay(item),
+      generic: item.genericName ?? "",
+      form: (item.doses[0]?.doseForm?.toLowerCase() as V2MedicineForm | undefined),
       schema: item.schema,
       phases: [item.defaults ?? {}],
-      typeText: item.typeText ?? composeTypeText(item.defaults ?? {}),
+      typeText: composeTypeText(item.defaults ?? {}),
     };
     onChange(picked);
     setOpen(false);
@@ -3291,9 +3309,9 @@ function TreatmentInputRowV2({
                   transition: "background 0.1s ease",
                 }}
               >
-                <span className="text-[15px] font-bold" style={{ color: isHighlight ? "#ffffff" : "#0F100F" }}>{m.name}</span>
+                <span className="text-[15px] font-bold" style={{ color: isHighlight ? "#ffffff" : "#0F100F" }}>{drugDisplayName(m)}</span>
                 <span className="text-[15px]" style={{ color: isHighlight ? "rgba(255,255,255,0.85)" : "#0F100F" }}>
-                  {m.generic ? `${m.generic} · ` : ""}{m.schema.map((f) => V2_FIELD_LABELS[f]).join(" · ")}
+                  {m.genericName ? `${m.genericName} · ` : ""}{m.schema.map((f) => V2_FIELD_LABELS[f]).join(" · ")}
                 </span>
               </button>
             );
@@ -7364,7 +7382,7 @@ function ClinicalSignsModal({ onClose }: { onClose: () => void }) {
 
 // ── Manage Advice Modal ────────────────────────────────────
 
-type AdviceItem = {
+export type AdviceItem = {
   id: string;
   title: string;
   descBn: string;
@@ -7372,7 +7390,7 @@ type AdviceItem = {
   isMine: boolean;
 };
 
-const MOCK_ADVICES: AdviceItem[] = [
+export const MOCK_ADVICES: AdviceItem[] = [
   {
     id: "a1",
     title: "Diabetes lifestyle plan",
@@ -7576,7 +7594,19 @@ const fakeTranslateBnToEn = (bn: string): string | null => {
   return hit ? hit.en : null;
 };
 
-function ManageAdviceModal({ onClose }: { onClose: () => void }) {
+function ManageAdviceModal({
+  onClose,
+  items,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  onClose: () => void;
+  items: AdviceItem[];
+  onAdd: (a: AdviceItem) => void;
+  onEdit: (id: string, patch: Partial<AdviceItem>) => void;
+  onDelete: (id: string) => void;
+}) {
   const [activeTab, setActiveTab] = useState<"all" | "mine">("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -7587,7 +7617,7 @@ function ManageAdviceModal({ onClose }: { onClose: () => void }) {
   const [formDescEn, setFormDescEn] = useState("");
   const [formDescBn, setFormDescBn] = useState("");
 
-  const filtered = MOCK_ADVICES.filter((a) => {
+  const filtered = items.filter((a) => {
     if (activeTab === "mine" && !a.isMine) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -7596,7 +7626,7 @@ function ManageAdviceModal({ onClose }: { onClose: () => void }) {
     return true;
   });
 
-  const selected = selectedId ? MOCK_ADVICES.find((a) => a.id === selectedId) : null;
+  const selected = selectedId ? items.find((a) => a.id === selectedId) : null;
 
   const startAdd = () => {
     setMode("add");
@@ -7656,7 +7686,7 @@ function ManageAdviceModal({ onClose }: { onClose: () => void }) {
   `;
 
   const confirmTarget = confirmDeleteFor
-    ? MOCK_ADVICES.find((a) => a.id === confirmDeleteFor)
+    ? items.find((a) => a.id === confirmDeleteFor)
     : null;
 
   return (
@@ -7919,7 +7949,16 @@ function ManageAdviceModal({ onClose }: { onClose: () => void }) {
                     Cancel
                   </button>
                   <button
-                    onClick={cancelForm}
+                    onClick={() => {
+                      if (mode === "add") {
+                        const id = `adv-${Date.now().toString(36)}`;
+                        onAdd({ id, title: formDescEn.slice(0, 60), descEn: formDescEn, descBn: formDescBn, isMine: true });
+                        setSelectedId(id);
+                      } else if (selected) {
+                        onEdit(selected.id, { descEn: formDescEn, descBn: formDescBn });
+                      }
+                      setMode("view");
+                    }}
                     disabled={!canSave}
                     className="px-[22px] h-[36px] rounded-[8px] text-[14px] font-semibold text-white border-none"
                     style={{
@@ -7998,7 +8037,7 @@ function ManageAdviceModal({ onClose }: { onClose: () => void }) {
                 </button>
                 <button
                   onClick={() => {
-                    // design mockup: close dialog and return to empty state
+                    if (confirmDeleteFor) onDelete(confirmDeleteFor);
                     setConfirmDeleteFor(null);
                     setSelectedId(null);
                     setMode("view");
@@ -10645,7 +10684,7 @@ function InsertTestTemplateModal({
 
 // ── Manage Drug Modal ─────────────────────────────────────
 
-type DrugDose = {
+export type DrugDose = {
   id: string;
   doseForm?: string;
   strength: string;
@@ -10654,7 +10693,7 @@ type DrugDose = {
   schemaValues?: Partial<Record<V2FieldType, string>>;
 };
 
-type DrugItem = {
+export type DrugItem = {
   id: string;
   brandName: string;
   genericName?: string;
@@ -10662,6 +10701,10 @@ type DrugItem = {
   manufacturer?: string;
   doses: DrugDose[];
   isMine: boolean;
+  // `schema` says which form fields render; `doses` lists available strengths.
+  // Different facts, not interconvertible — both are stored (DR-028).
+  schema: V2FieldType[];
+  defaults?: Partial<Record<V2FieldType, string>>;
 };
 
 const DRUG_CLASS_OPTIONS = [
@@ -10685,7 +10728,7 @@ const DRUG_CLASS_OPTIONS = [
 const DRUG_DOSE_FORM_OPTIONS = V2_FORM_OPTION_LIST;
 const DRUG_MANUFACTURER_OPTIONS = ["Square", "Beximco", "Incepta", "Healthcare", "ACI", "Renata", "Eskayef", "Opsonin", "Drug International"];
 
-const MOCK_DRUGS: DrugItem[] = [
+export const MOCK_DRUGS: Omit<DrugItem, "schema">[] = [
   {
     id: "drg1", brandName: "Napa", genericName: "Paracetamol", drugClass: "Analgesic", manufacturer: "Beximco", isMine: false,
     doses: [
@@ -11870,9 +11913,9 @@ function ManageDrugModal({ onClose }: { onClose: () => void }) {
 
 // ── Manage Test Modal ──────────────────────────────────────
 
-type TestGender = "All" | "Male" | "Female";
+export type TestGender = "All" | "Male" | "Female";
 
-type TestRange = {
+export type TestRange = {
   id: string;
   gender?: TestGender;
   ageGroup?: string;
@@ -11880,7 +11923,7 @@ type TestRange = {
   rangeMax?: string;
 };
 
-type TestItem = {
+export type TestItem = {
   id: string;
   panelName?: string;
   name: string;
@@ -11905,7 +11948,7 @@ const TEST_SPECIMEN_OPTIONS = ["Blood", "Plasma", "Serum", "Skin", "Stool", "Uri
 const TEST_METHOD_OPTIONS = ["Chromogenic", "Colt detection", "Colonoscopy", "ECLIA", "Enzymatic"];
 const TEST_GENDER_OPTIONS: TestGender[] = ["All", "Male", "Female"];
 
-const MOCK_TESTS: TestItem[] = [
+export const MOCK_TESTS: TestItem[] = [
   {
     id: "t1",
     panelName: "Complete Blood Count (CBC)",
@@ -13004,7 +13047,7 @@ function ManageTestModal({ onClose }: { onClose: () => void }) {
 
 // ── Manage Diagnosis Modal ─────────────────────────────────
 
-type DiagnosisItem = {
+export type DiagnosisItem = {
   id: string;
   name: string;
   code?: string;
@@ -13015,7 +13058,7 @@ type DiagnosisItem = {
 
 const DIAGNOSIS_CODE_TYPES: NonNullable<DiagnosisItem["codeType"]>[] = ["ICD-10", "ICD-11", "SNOMED CT"];
 
-const MOCK_DIAGNOSES: DiagnosisItem[] = [
+export const MOCK_DIAGNOSES: DiagnosisItem[] = [
   { id: "dx1", name: "Essential hypertension", code: "I10", codeType: "ICD-10", description: "Elevated systemic arterial blood pressure without an identifiable secondary cause.", isMine: false },
   { id: "dx9", name: "Unspecified back pain", isMine: true },
   { id: "dx2", name: "Type 2 diabetes mellitus", code: "E11", codeType: "ICD-10", description: "Insulin resistance with relative insulin deficiency. Managed by diet, oral agents, and insulin as indicated.", isMine: false },
@@ -15050,6 +15093,38 @@ export default function PrescriptionApp({ token }: { token: string }) {
   const setMedications = (v: Medication[] | ((p: Medication[]) => Medication[])) =>
     updateDraft({ medications: typeof v === "function" ? v(draft?.medications ?? []) : v });
 
+  // ── Libraries (DR-028) ────────────────────────────────────
+  // Consumers derive their display strings from the full catalogue records at
+  // read time, so the rich fields are never flattened away in storage.
+  const libraries = sutState.libraries;
+  const setLibraries = (
+    v: typeof libraries | ((p: typeof libraries) => typeof libraries),
+  ) =>
+    setSutState((prev) => ({
+      ...prev,
+      libraries: typeof v === "function" ? v(prev.libraries) : v,
+    }));
+  const libAdd = <K extends keyof typeof libraries>(kind: K, entry: (typeof libraries)[K][number]) =>
+    setLibraries((prev) => ({ ...prev, [kind]: [...prev[kind], entry] }));
+  const libEdit = <K extends keyof typeof libraries>(
+    kind: K, id: string, patch: Partial<(typeof libraries)[K][number]>,
+  ) =>
+    setLibraries((prev) => ({
+      ...prev,
+      [kind]: prev[kind].map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    }));
+  // Deleting a catalogue entry never mutates the draft — a prescribed row
+  // keeps its dangling drugId and renders from its own stored fields (DR-028).
+  const libDelete = <K extends keyof typeof libraries>(kind: K, id: string) =>
+    setLibraries((prev) => ({ ...prev, [kind]: prev[kind].filter((r) => r.id !== id) }));
+
+  const testLibrary = useMemo(() => libraries.tests.map((t) => t.name), [libraries.tests]);
+  const diagnosisLibrary = useMemo(() => libraries.diagnoses.map((d) => d.name), [libraries.diagnoses]);
+  const adviceLibrary = useMemo(
+    () => libraries.advice.map((a) => ({ en: a.descEn, bn: a.descBn })),
+    [libraries.advice],
+  );
+
   // ── Templates (DR-027) ────────────────────────────────────
   const templates = sutState.templates;
   const addTemplate = <K extends keyof typeof templates>(
@@ -16042,6 +16117,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                     mode={treatmentMode}
                     startingSerial={1}
                     demoSeeded={treatmentDemoSeeded}
+                    drugs={libraries.drugs}
                     medications={savedMedications}
                     onChangeMedication={(id, patch) =>
                       setMedications((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m)))
@@ -16115,7 +16191,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                     <SimpleAddRow
                       key={`test-${clearKey}`}
                       placeholder="Add test"
-                      library={TEST_LIBRARY}
+                      library={testLibrary}
                       panelId="tests-typeahead-panel"
                       serialNum={savedTests.length + 1}
                       onAdd={(v) => setSavedTests((p) => [...p, { id: newRowId(), text: v }])}
@@ -16197,7 +16273,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                       key={`advice-${clearKey}`}
                       serialNum={savedAdvice.length + 1}
                       placeholder="Add advice"
-                      library={ADVICE_LIBRARY}
+                      library={adviceLibrary}
                       panelId="advice-typeahead-panel"
                       font="font-[Kalpurush]"
                       onAdd={(v, t) => setSavedAdvice((p) => [...p, { id: newRowId(), bn: v, en: t, showEn: false }])}
@@ -16228,7 +16304,15 @@ export default function PrescriptionApp({ token }: { token: string }) {
           />
         )}
         {showTestResults && <AddTestResultsModal onClose={() => setShowTestResults(false)} testList={savedTests.map((t) => t.text)} />}
-        {showManageAdvice && <ManageAdviceModal onClose={() => setShowManageAdvice(false)} />}
+        {showManageAdvice && (
+          <ManageAdviceModal
+            onClose={() => setShowManageAdvice(false)}
+            items={libraries.advice}
+            onAdd={(a) => libAdd("advice", a)}
+            onEdit={(id, patch) => libEdit("advice", id, patch)}
+            onDelete={(id) => libDelete("advice", id)}
+          />
+        )}
         {showSaveAdviceTemplate && (
           <SaveAdviceTemplateModal
             onClose={() => setShowSaveAdviceTemplate(false)}
@@ -16417,7 +16501,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                   key={`dx-${clearKey}`}
                   serialNum={savedDiagnoses.length + 1}
                   placeholder="Add diagnosis"
-                  library={DIAGNOSIS_LIBRARY}
+                  library={diagnosisLibrary}
                   panelId="diagnosis-typeahead-panel"
                   onAdd={(v) => setSavedDiagnoses((p) => [...p, { id: newRowId(), text: v }])}
                 />

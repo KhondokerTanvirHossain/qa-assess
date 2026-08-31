@@ -801,3 +801,38 @@ Accepted as production behaviour on the product owner's instruction; a
 candidate may report it, and it is a honeypot candidate for the bug key.
 `SaveOverallTemplateModal` loses its static placeholder previews — an empty
 prescription now previews as empty.
+
+---
+
+## DR-028: Libraries hold the full catalogue record; medications reference by id
+
+**Date:** 2026-08-30 · **Status:** Accepted
+
+**Context**
+The provider's libraries held flattened shapes while the Manage modals held
+rich catalogue records. Wiring the modals as-is would have dropped every field
+but the name on save. Separately, the template modal's medicine cards render
+brand, manufacturer, class, and dose form — fields `Medication` does not carry
+— so a third medication representation existed alongside the two DR-026
+reconciled.
+
+**Decision**
+Libraries store the Manage modals' own item types. `DrugItem` additionally
+carries `schema` and `defaults`, which describe different facts from `doses[]`
+and are not interconvertible. Consumers derive display strings at read time.
+
+`Medication` gains an optional `drugId` referencing the library entry.
+Free-text medications carry none and render only the fields they have.
+
+**Rejected**
+Deriving `schema` from `doses[]`. They describe different things — which form
+fields to render versus which strengths exist.
+
+Keeping both a flat and a rich library shape. Two representations of one
+catalogue drift.
+
+**Consequences**
+A free-text medication renders blank brand, class, and manufacturer in the
+template card. Accepted on the product owner's instruction; it is a honeypot
+candidate for the bug key. Deleting a library entry leaves a dangling `drugId`
+on any prescription already using it, so every lookup must tolerate a miss.
