@@ -836,3 +836,54 @@ A free-text medication renders blank brand, class, and manufacturer in the
 template card. Accepted on the product owner's instruction; it is a honeypot
 candidate for the bug key. Deleting a library entry leaves a dangling `drugId`
 on any prescription already using it, so every lookup must tolerate a miss.
+
+---
+
+## DR-029: The final bug set — 20 planted bugs plus 3 honeypots
+
+**Date:** 2026-08-31 · **Status:** Accepted
+
+**Context**
+The SUT is feature-complete and validated. The answer key had to be fixed
+before planting begins, so each plant brief has a contract to work from and
+the key is not retro-fitted to whatever was built.
+
+**Decision**
+Twenty planted bugs plus three honeypots, declared in `lib/bugKey.ts`. Tier
+split 6 / 8 / 6, total non-honeypot weight 82, with Tier 3 carrying 63% of it.
+
+Weights follow the 1 / 3 / 8 scale, except BUG-15 at 12 — completing a
+prescription with no diagnosis at all is the most severe defect in the set and
+the scale's top rung understates it against the other Tier 3s.
+
+Honeypots carry weight 0 and are excluded from the detection denominator. They
+are scored in their own column, split by whether the candidate reported one as
+a defect or raised it as a question.
+
+Four entries were discovered during the build rather than authored. BUG-13
+(a panel-member test cannot be deleted from the panel view) and BUG-14 (the
+"Needs Details" pill and counter gate nothing) are real inherited defects found
+while wiring the Manage and template modals; both were left in place rather
+than fixed, because each requires candidate interaction and neither collides
+with a planted bug in its module — the DR-024 test. HP-01 (an Overall template
+overwrites vitals) and HP-02 (a free-text medication shows blank catalogue
+fields) are documented consequences of DR-027 and DR-028 that read as defects,
+which makes them honeypots rather than bugs.
+
+**Rejected**
+The original "height accepts feet and renders as centimetres" Tier 3. It is
+orphaned: no unit toggle exists anywhere in the ported design, and adding one
+to host the bug would violate design fidelity (CLAUDE.md §4). Replaced by
+BUG-20, the follow-up date computing from today rather than the prescription
+date, which lives in an existing control and needs no new UI.
+
+**Consequences**
+Two declared bugs sit on rules that are currently unreachable through the UI.
+BUG-01 and BUG-10 both depend on validation added in Brief 14 whose enforcement
+is partly structural — the age and DOB fields auto-sync, so they cannot
+currently disagree. Planting those two means loosening the sync as well as the
+validator, which is the point: the plant restores reachability and the
+validator becomes the tell.
+
+Adding a bug later means editing one file, and `lib/scoring.ts` will not
+compile against a key whose modules drift from the `Module` union (DR-023).
