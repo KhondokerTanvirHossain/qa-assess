@@ -8073,36 +8073,6 @@ type DraftTest =
     }
   | { id: string; source: "freetext"; raw: string };
 
-const DRAFT_TESTS: DraftTest[] = [
-  {
-    id: "dt1",
-    source: "library",
-    panelName: "Complete Blood Count (CBC)",
-    name: "Haemoglobin",
-    abbreviation: "Hb",
-    specimen: "Blood",
-    method: "Colt detection",
-    unit: "g/dL",
-    ranges: [
-      { id: "dt1-r1", gender: "Male", ageGroup: "Adult", rangeMin: "13.5", rangeMax: "17.5" },
-      { id: "dt1-r2", gender: "Female", ageGroup: "Adult", rangeMin: "12", rangeMax: "16" },
-    ],
-  },
-  {
-    id: "dt2",
-    source: "library",
-    name: "Fasting Blood Sugar",
-    abbreviation: "FBS",
-    specimen: "Blood",
-    method: "Enzymatic",
-    unit: "mg/dL",
-    ranges: [
-      { id: "dt2-r1", gender: "All", ageGroup: "Adult", rangeMin: "70", rangeMax: "110" },
-    ],
-  },
-  { id: "dt3", source: "freetext", raw: "HbA1c" },
-  { id: "dt4", source: "freetext", raw: "Urine routine" },
-];
 
 type FtTestFields = {
   panelName?: string;
@@ -8114,14 +8084,14 @@ type FtTestFields = {
   ranges: TestRange[];
 };
 
-function SaveTestTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: (title: string) => void }) {
+function SaveTestTemplateModal({ onClose, onSave, tests }: { onClose: () => void; onSave: (title: string) => void; tests: DraftTest[] }) {
   const [templateTitle, setTemplateTitle] = useState("");
 
   // Seed free-text drafts — Test Name starts empty so the doctor enters it
   // explicitly; the raw draft text is shown in the card header for context.
   const [ftFields, setFtFields] = useState<Record<string, FtTestFields>>(() => {
     const init: Record<string, FtTestFields> = {};
-    for (const d of DRAFT_TESTS) {
+    for (const d of tests) {
       if (d.source === "freetext") {
         init[d.id] = {
           name: "",
@@ -8186,8 +8156,8 @@ function SaveTestTemplateModal({ onClose, onSave }: { onClose: () => void; onSav
     return !!f?.name.trim();
   };
 
-  const completeCount = DRAFT_TESTS.filter(isReady).length;
-  const canSave = templateTitle.trim() !== "" && completeCount === DRAFT_TESTS.length;
+  const completeCount = tests.filter(isReady).length;
+  const canSave = templateTitle.trim() !== "" && tests.length > 0;
 
   const modalCss = `
     .stt-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -8334,15 +8304,15 @@ function SaveTestTemplateModal({ onClose, onSave }: { onClose: () => void; onSav
             <span className="text-[13px] font-bold text-[#5a6070]">Tests</span>
             <span
               className="text-[12px] font-semibold"
-              style={{ color: completeCount === DRAFT_TESTS.length ? "#2a7a0d" : "#dc2626" }}
+              style={{ color: completeCount === tests.length ? "#2a7a0d" : "#dc2626" }}
             >
-              {completeCount} / {DRAFT_TESTS.length} ready
+              {completeCount} / {tests.length} ready
             </span>
           </div>
 
           {/* List */}
           <div className="px-[22px] pt-[6px] pb-[12px] flex flex-col gap-[10px]">
-          {DRAFT_TESTS.map((d) => {
+          {tests.map((d) => {
             const ready = isReady(d);
             const open = expanded.has(d.id);
             return (
@@ -8575,24 +8545,6 @@ type DraftAdvice =
   | { id: string; source: "library"; title: string; descEn: string; descBn: string }
   | { id: string; source: "freetext"; title: string };
 
-const DRAFT_ADVICES: DraftAdvice[] = [
-  {
-    id: "d1",
-    source: "library",
-    title: "Diabetes lifestyle plan",
-    descEn: "Check blood sugar regularly. Avoid sweets, maintain a balanced diet, and walk 30 minutes daily.",
-    descBn: "নিয়মিত রক্তে চিনির মাত্রা পরীক্ষা করুন। মিষ্টি জাতীয় খাবার এড়িয়ে চলুন এবং সুষম খাদ্য গ্রহণ করুন।",
-  },
-  {
-    id: "d2",
-    source: "library",
-    title: "Hypertension care",
-    descEn: "Reduce salt intake. Take prescribed medication at the same time every day. Monitor BP weekly.",
-    descBn: "লবণ খাওয়া কমান এবং প্রতিদিন নির্ধারিত সময়ে ওষুধ সেবন করুন।",
-  },
-  { id: "d3", source: "freetext", title: "Drink water every hour, at least 8 glasses a day" },
-  { id: "d4", source: "freetext", title: "প্রতিদিন ৩০ মিনিট হাঁটার অভ্যাস করুন" },
-];
 
 // Bengali character range: detect whether a string is primarily Bangla.
 const isBengaliText = (s: string) => /[ঀ-৿]/.test(s);
@@ -8601,7 +8553,7 @@ const isBengaliText = (s: string) => /[ঀ-৿]/.test(s);
 // modal's Advice tab.
 type FtField = { title: string; descEn: string; descBn: string };
 
-function SaveAdviceTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: (title: string) => void }) {
+function SaveAdviceTemplateModal({ onClose, onSave, advices }: { onClose: () => void; onSave: (title: string) => void; advices: DraftAdvice[] }) {
   const [templateTitle, setTemplateTitle] = useState("");
   const canSave = templateTitle.trim() !== "";
 
@@ -8670,10 +8622,10 @@ function SaveAdviceTemplateModal({ onClose, onSave }: { onClose: () => void; onS
         <div className="flex-1 min-h-0 overflow-y-auto sat-scroll px-[22px] py-[14px]">
           <div className="flex items-center justify-between mb-[10px]">
             <span className="text-[13px] font-bold text-[#5a6070]">Advices</span>
-            <span className="text-[12px] text-[#8c9198]">{DRAFT_ADVICES.length} item{DRAFT_ADVICES.length === 1 ? "" : "s"}</span>
+            <span className="text-[12px] text-[#8c9198]">{advices.length} item{advices.length === 1 ? "" : "s"}</span>
           </div>
           <div className="flex flex-col gap-[10px]">
-            {DRAFT_ADVICES.map((a) => {
+            {advices.map((a) => {
               // Free-text entries arrive in only one language. Use the
               // page-level default fallback for the other side so each card
               // always shows both BN and EN lines.
@@ -8757,34 +8709,6 @@ type DraftMedicine =
     }
   | { id: string; source: "freetext"; raw: string };
 
-const DRAFT_MEDICINES: DraftMedicine[] = [
-  {
-    id: "m1",
-    source: "library",
-    brandName: "Napa",
-    genericName: "Paracetamol",
-    drugClass: "Analgesic",
-    manufacturer: "Beximco",
-    doseForm: "Tablet",
-    strength: "500 mg",
-    schedule: "1+1+1",
-    doseBn: "১ টা করে দিনে ৩ বার - প্রয়োজনমত (ব্যাথা হলে/ জ্বর হলে) (১০) - (আহারের পর)",
-  },
-  {
-    id: "m2",
-    source: "library",
-    brandName: "Seclo",
-    genericName: "Omeprazole",
-    drugClass: "PPI (Proton-pump inhibitor)",
-    manufacturer: "Square",
-    doseForm: "Capsule",
-    strength: "20 mg",
-    schedule: "1+0+1",
-    doseBn: "১ টা করে দিনে ২ বার - (আহারের ৩০ মিনিট আগে)",
-  },
-  { id: "m3", source: "freetext", raw: "Syp. Ambrotex 100 ml" },
-  { id: "m4", source: "freetext", raw: "Local-Sleep 5mg রাতে ১ টি" },
-];
 
 type FtMedicineFields = {
   brandName: string;
@@ -8801,14 +8725,14 @@ type FtMedicineFields = {
   schemaValues?: Partial<Record<V2FieldType, string>>;
 };
 
-function SaveTreatmentTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: (title: string) => void }) {
+function SaveTreatmentTemplateModal({ onClose, onSave, medicines }: { onClose: () => void; onSave: (title: string) => void; medicines: DraftMedicine[] }) {
   const [templateTitle, setTemplateTitle] = useState("");
 
   // Seed free-text drafts — all fields start empty so the doctor enters
   // them explicitly; the raw draft text is shown in the card header for context.
   const [ftFields, setFtFields] = useState<Record<string, FtMedicineFields>>(() => {
     const init: Record<string, FtMedicineFields> = {};
-    for (const m of DRAFT_MEDICINES) {
+    for (const m of medicines) {
       if (m.source === "freetext") {
         init[m.id] = {
           brandName: "",
@@ -8853,8 +8777,8 @@ function SaveTreatmentTemplateModal({ onClose, onSave }: { onClose: () => void; 
     return !!f?.brandName.trim();
   };
 
-  const completeCount = DRAFT_MEDICINES.filter(isReady).length;
-  const canSave = templateTitle.trim() !== "" && completeCount === DRAFT_MEDICINES.length;
+  const completeCount = medicines.filter(isReady).length;
+  const canSave = templateTitle.trim() !== "" && medicines.length > 0;
 
   const modalCss = `
     .srx-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -9002,15 +8926,15 @@ function SaveTreatmentTemplateModal({ onClose, onSave }: { onClose: () => void; 
             <span className="text-[13px] font-bold text-[#5a6070]">Medicines</span>
             <span
               className="text-[12px] font-semibold"
-              style={{ color: completeCount === DRAFT_MEDICINES.length ? "#2a7a0d" : "#dc2626" }}
+              style={{ color: completeCount === medicines.length ? "#2a7a0d" : "#dc2626" }}
             >
-              {completeCount} / {DRAFT_MEDICINES.length} ready
+              {completeCount} / {medicines.length} ready
             </span>
           </div>
 
           {/* List */}
           <div className="px-[22px] pt-[6px] pb-[12px] flex flex-col gap-[10px]">
-            {DRAFT_MEDICINES.map((m) => {
+            {medicines.map((m) => {
               const ready = isReady(m);
               const open = expanded.has(m.id);
               return (
@@ -9300,61 +9224,56 @@ const OV_TAB_LABELS: Record<OvSectionKey, string> = {
 };
 
 // Mock data for the new tabs added in the redesign — kept inline so the
-// modal stays self-contained (same pattern as DRAFT_MEDICINES / DRAFT_TESTS).
-const DRAFT_PHYSICAL: { id: string; label: string; value?: string }[] = [
-  {
-    id: "pf-notes",
-    label: "Additional findings",
-    value: "General — Appearance: frail; Nutrition: average. Mouth — Angular stomatitis.",
-  },
-];
+// modal stays self-contained (same pattern as medicines / tests).
 
-const DRAFT_DIAGNOSES: { id: string; text: string }[] = [
-  { id: "dx-1", text: "Type 2 Diabetes Mellitus" },
-  { id: "dx-2", text: "Essential hypertension" },
-  { id: "dx-3", text: "Senile immature cataract" },
-];
 
-const DRAFT_DRUG_HISTORY: { id: string; text: string }[] = [
-  { id: "dh-1", text: "Tab. Napa 500 mg" },
-  { id: "dh-2", text: "Tab. Metformin 500 mg" },
-];
 
-const DRAFT_NOTES: { id: string; text: string }[] = [
-  { id: "nt-1", text: "Review after 7 days; bring lab reports." },
-  { id: "nt-2", text: "Call helpline if symptoms worsen." },
-];
 
-const DRAFT_FOLLOW_UP: { id: string; text: string }[] = [
-  { id: "fu-1", text: "Follow up in 14 days." },
-  { id: "fu-2", text: "Refer to Cardiology if symptoms persist." },
-];
 
 // Sub-sections for the C/C tab. Static drafts so the Save-as-Template
 // preview always has content regardless of what's in the live prescription.
-const DRAFT_CHIEF_COMPLAINTS: { id: string; text: string; remark?: string }[] = [
-  { id: "cc-1", text: "Fever acute gradually progressive for 1 week" },
-  { id: "cc-2", text: "Productive cough for 5 days" },
-];
-const DRAFT_CHIEF_HISTORY: { id: string; text: string; remark?: string }[] = [
-  { id: "hx-1", text: "Hypertension" },
-];
 
-const DRAFT_CHIEF_SUMMARY: string =
-  "Patient presents with worsening joint pain over the past week. No recent trauma. Currently managed with lifestyle measures and PRN analgesics.";
 
-function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; onSave: (title: string) => void }) {
+function SaveOverallTemplateModal({
+  onClose,
+  onSave,
+  medicines,
+  tests,
+  advices,
+  physical,
+  diagnoses,
+  drugHistory,
+  notes,
+  followUp,
+  chiefComplaints,
+  chiefHistory,
+  chiefSummary,
+}: {
+  onClose: () => void;
+  onSave: (title: string) => void;
+  medicines: DraftMedicine[];
+  tests: DraftTest[];
+  advices: DraftAdvice[];
+  physical: { id: string; label: string; value?: string }[];
+  diagnoses: { id: string; text: string }[];
+  drugHistory: { id: string; text: string }[];
+  notes: { id: string; text: string }[];
+  followUp: { id: string; text: string }[];
+  chiefComplaints: { id: string; text: string; remark?: string }[];
+  chiefHistory: { id: string; text: string; remark?: string }[];
+  chiefSummary: string;
+}) {
   const [title, setTitle] = useState("");
 
   // Chief Complaints stay tied to the live Rx — always library, never need
   // extra details. Treatment / Tests / Advice tabs reuse the richer
-  // DRAFT_MEDICINES / DRAFT_TESTS / DRAFT_ADVICES data (mix of library +
+  // medicines / tests / advices data (mix of library +
   // free-text drafts) so their content matches each section's own
   // Save-as-Template modal exactly.
-  // Use the static DRAFT_CHIEF_COMPLAINTS draft (not the live `complaints`
+  // Use the static chiefComplaints draft (not the live `complaints`
   // array, which starts empty in the patient-selection flow) so the modal
   // preview always shows a meaningful Present Complaints row.
-  const chiefItems = DRAFT_CHIEF_COMPLAINTS.map((c) => ({
+  const chiefItems = chiefComplaints.map((c) => ({
     id: c.id,
     text: c.text,
     remark: c.remark,
@@ -9366,19 +9285,19 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
     advice: true, diagnosis: true, drugHistory: true, note: true, followUp: true,
   });
   const [pickedChief, setPickedChief] = useState<Set<string>>(new Set(chiefItems.map((i) => i.id)));
-  const [pickedMed, setPickedMed] = useState<Set<string>>(new Set(DRAFT_MEDICINES.map((m) => m.id)));
-  const [pickedTest, setPickedTest] = useState<Set<string>>(new Set(DRAFT_TESTS.map((t) => t.id)));
-  const [pickedAdv, setPickedAdv] = useState<Set<string>>(new Set(DRAFT_ADVICES.map((a) => a.id)));
-  const [pickedPhysical, setPickedPhysical] = useState<Set<string>>(new Set(DRAFT_PHYSICAL.map((p) => p.id)));
-  const [pickedDx, setPickedDx] = useState<Set<string>>(new Set(DRAFT_DIAGNOSES.map((d) => d.id)));
-  const [pickedDrugHistory, setPickedDrugHistory] = useState<Set<string>>(new Set(DRAFT_DRUG_HISTORY.map((d) => d.id)));
-  const [pickedNote, setPickedNote] = useState<Set<string>>(new Set(DRAFT_NOTES.map((n) => n.id)));
-  const [pickedFollowUp, setPickedFollowUp] = useState<Set<string>>(new Set(DRAFT_FOLLOW_UP.map((f) => f.id)));
+  const [pickedMed, setPickedMed] = useState<Set<string>>(new Set(medicines.map((m) => m.id)));
+  const [pickedTest, setPickedTest] = useState<Set<string>>(new Set(tests.map((t) => t.id)));
+  const [pickedAdv, setPickedAdv] = useState<Set<string>>(new Set(advices.map((a) => a.id)));
+  const [pickedPhysical, setPickedPhysical] = useState<Set<string>>(new Set(physical.map((p) => p.id)));
+  const [pickedDx, setPickedDx] = useState<Set<string>>(new Set(diagnoses.map((d) => d.id)));
+  const [pickedDrugHistory, setPickedDrugHistory] = useState<Set<string>>(new Set(drugHistory.map((d) => d.id)));
+  const [pickedNote, setPickedNote] = useState<Set<string>>(new Set(notes.map((n) => n.id)));
+  const [pickedFollowUp, setPickedFollowUp] = useState<Set<string>>(new Set(followUp.map((f) => f.id)));
 
   // ─── Free-text form data (per section, mirroring section modals) ─
   const [ftMed, setFtMed] = useState<Record<string, FtMedicineFields>>(() => {
     const init: Record<string, FtMedicineFields> = {};
-    for (const m of DRAFT_MEDICINES) {
+    for (const m of medicines) {
       if (m.source === "freetext") {
         init[m.id] = {
           brandName: "", genericName: "",
@@ -9391,7 +9310,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
   });
   const [ftTest, setFtTest] = useState<Record<string, FtTestFields>>(() => {
     const init: Record<string, FtTestFields> = {};
-    for (const d of DRAFT_TESTS) {
+    for (const d of tests) {
       if (d.source === "freetext") {
         init[d.id] = {
           name: "",
@@ -9405,7 +9324,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
   });
   const [ftAdv, setFtAdv] = useState<Record<string, FtField>>(() => {
     const init: Record<string, FtField> = {};
-    for (const a of DRAFT_ADVICES) {
+    for (const a of advices) {
       if (a.source === "freetext") {
         const bn = isBengaliText(a.title);
         init[a.id] = {
@@ -9438,14 +9357,14 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
     if (nextOn) {
       // Re-select everything when section turns back on
       if (k === "chief") setPickedChief(new Set(chiefItems.map((i) => i.id)));
-      if (k === "treatment") setPickedMed(new Set(DRAFT_MEDICINES.map((m) => m.id)));
-      if (k === "tests") setPickedTest(new Set(DRAFT_TESTS.map((t) => t.id)));
-      if (k === "advice") setPickedAdv(new Set(DRAFT_ADVICES.map((a) => a.id)));
-      if (k === "physical") setPickedPhysical(new Set(DRAFT_PHYSICAL.map((p) => p.id)));
-      if (k === "diagnosis") setPickedDx(new Set(DRAFT_DIAGNOSES.map((d) => d.id)));
-      if (k === "drugHistory") setPickedDrugHistory(new Set(DRAFT_DRUG_HISTORY.map((d) => d.id)));
-      if (k === "note") setPickedNote(new Set(DRAFT_NOTES.map((n) => n.id)));
-      if (k === "followUp") setPickedFollowUp(new Set(DRAFT_FOLLOW_UP.map((f) => f.id)));
+      if (k === "treatment") setPickedMed(new Set(medicines.map((m) => m.id)));
+      if (k === "tests") setPickedTest(new Set(tests.map((t) => t.id)));
+      if (k === "advice") setPickedAdv(new Set(advices.map((a) => a.id)));
+      if (k === "physical") setPickedPhysical(new Set(physical.map((p) => p.id)));
+      if (k === "diagnosis") setPickedDx(new Set(diagnoses.map((d) => d.id)));
+      if (k === "drugHistory") setPickedDrugHistory(new Set(drugHistory.map((d) => d.id)));
+      if (k === "note") setPickedNote(new Set(notes.map((n) => n.id)));
+      if (k === "followUp") setPickedFollowUp(new Set(followUp.map((f) => f.id)));
     }
   };
   const togglePicked = (k: OvSectionKey, id: string) => {
@@ -9490,14 +9409,14 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
   };
   const sectionTotal = (k: OvSectionKey) => {
     if (k === "chief") return chiefItems.length;
-    if (k === "treatment") return DRAFT_MEDICINES.length;
-    if (k === "tests") return DRAFT_TESTS.length;
-    if (k === "advice") return DRAFT_ADVICES.length;
-    if (k === "physical") return DRAFT_PHYSICAL.length;
-    if (k === "diagnosis") return DRAFT_DIAGNOSES.length;
-    if (k === "drugHistory") return DRAFT_DRUG_HISTORY.length;
-    if (k === "note") return DRAFT_NOTES.length;
-    return DRAFT_FOLLOW_UP.length;
+    if (k === "treatment") return medicines.length;
+    if (k === "tests") return tests.length;
+    if (k === "advice") return advices.length;
+    if (k === "physical") return physical.length;
+    if (k === "diagnosis") return diagnoses.length;
+    if (k === "drugHistory") return drugHistory.length;
+    if (k === "note") return notes.length;
+    return followUp.length;
   };
   const sectionEffectiveCount = (k: OvSectionKey) =>
     sectionOn[k] ? sectionPicked(k).size : 0;
@@ -9508,15 +9427,18 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
 
   const pendingForSection = (k: OvSectionKey) => {
     if (!sectionOn[k]) return 0;
-    if (k === "treatment") return DRAFT_MEDICINES.filter((m) => m.source === "freetext" && pickedMed.has(m.id) && !isMedReady(m.id)).length;
-    if (k === "tests") return DRAFT_TESTS.filter((d) => d.source === "freetext" && pickedTest.has(d.id) && !isTestReady(d.id)).length;
+    if (k === "treatment") return medicines.filter((m) => m.source === "freetext" && pickedMed.has(m.id) && !isMedReady(m.id)).length;
+    if (k === "tests") return tests.filter((d) => d.source === "freetext" && pickedTest.has(d.id) && !isTestReady(d.id)).length;
     // Advice is now read-only bilingual cards — no edit fields, so never pending.
     return 0;
   };
   const pendingFtCount = (Object.keys(OV_TAB_LABELS) as OvSectionKey[])
     .reduce((sum, k) => sum + pendingForSection(k), 0);
 
-  const canSave = title.trim() !== "" && totalItems > 0 && pendingFtCount === 0;
+  // A title plus at least one item. Free-text rows still surface their
+  // "Needs Details" pill, but they no longer block the button — per-row
+  // completeness was a check against the removed mock fixture.
+  const canSave = title.trim() !== "" && totalItems > 0;
 
   const modalCss = `
     .sov-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -9616,7 +9538,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
       {/* History */}
       <ChiefSubHeader label="History" />
       <div className="rounded-[10px] overflow-hidden" style={{ border: "1px solid #eef0f4", background: "#ffffff" }}>
-        {DRAFT_CHIEF_HISTORY.map((h, i) => (
+        {chiefHistory.map((h, i) => (
           <div
             key={h.id}
             className="flex items-start gap-[10px] px-[14px] py-[10px]"
@@ -9634,7 +9556,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
       <ChiefSubHeader label="Summary" />
       <div className="rounded-[10px] px-[14px] py-[10px]" style={{ border: "1px solid #eef0f4", background: "#ffffff" }}>
         <p className="text-[13px] text-[#0F100F] leading-[1.55]">
-          {DRAFT_CHIEF_SUMMARY}
+          {chiefSummary}
         </p>
       </div>
     </div>
@@ -9648,7 +9570,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
     return (
       <div>
         <div className="flex flex-col gap-[10px]">
-          {DRAFT_MEDICINES.map((m) => {
+          {medicines.map((m) => {
             const isPicked = isOn && pickedMed.has(m.id);
             const ready = m.source === "library" ? true : isMedReady(m.id);
             const open = libExpanded.has(m.id);
@@ -9790,7 +9712,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
     return (
       <div>
         <div className="flex flex-col gap-[10px]">
-          {DRAFT_TESTS.map((d) => {
+          {tests.map((d) => {
             const isPicked = isOn && pickedTest.has(d.id);
             const ready = d.source === "library" ? true : isTestReady(d.id);
             return (
@@ -9876,7 +9798,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
     return (
       <div>
         <div className="flex flex-col gap-[10px]">
-          {DRAFT_ADVICES.map((a) => {
+          {advices.map((a) => {
             // Free-text entries arrive in only one language. Use the
             // page-level default fallback for the other side so each card
             // always shows both BN and EN lines.
@@ -9920,7 +9842,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
   const renderPhysicalTab = () => (
     <div>
       <div className="rounded-[10px] overflow-hidden" style={{ border: "1px solid #eef0f4", background: "#ffffff" }}>
-        {DRAFT_PHYSICAL.map((p, i) => (
+        {physical.map((p, i) => (
           <div
             key={p.id}
             className="flex items-start gap-[10px] px-[14px] py-[10px]"
@@ -9940,7 +9862,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
   const renderDiagnosisTab = () => (
     <div>
       <div className="rounded-[10px] overflow-hidden" style={{ border: "1px solid #eef0f4", background: "#ffffff" }}>
-        {DRAFT_DIAGNOSES.map((d, i) => (
+        {diagnoses.map((d, i) => (
           <div
             key={d.id}
             className="flex items-start gap-[10px] px-[14px] py-[10px]"
@@ -9959,7 +9881,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
   const renderNoteTab = () => (
     <div>
       <div className="rounded-[10px] overflow-hidden" style={{ border: "1px solid #eef0f4", background: "#ffffff" }}>
-        {DRAFT_NOTES.map((n, i) => (
+        {notes.map((n, i) => (
           <div
             key={n.id}
             className="flex items-start gap-[10px] px-[14px] py-[10px]"
@@ -9978,7 +9900,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
   const renderDrugHistoryTab = () => (
     <div>
       <div className="rounded-[10px] overflow-hidden" style={{ border: "1px solid #eef0f4", background: "#ffffff" }}>
-        {DRAFT_DRUG_HISTORY.map((d, i) => (
+        {drugHistory.map((d, i) => (
           <div
             key={d.id}
             className="flex items-start gap-[10px] px-[14px] py-[10px]"
@@ -9997,7 +9919,7 @@ function SaveOverallTemplateModal({ onClose, onSave }: { onClose: () => void; on
   const renderFollowUpTab = () => (
     <div>
       <div className="rounded-[10px] overflow-hidden" style={{ border: "1px solid #eef0f4", background: "#ffffff" }}>
-        {DRAFT_FOLLOW_UP.map((f, i) => (
+        {followUp.map((f, i) => (
           <div
             key={f.id}
             className="flex items-start gap-[10px] px-[14px] py-[10px]"
@@ -15244,6 +15166,86 @@ export default function PrescriptionApp({ token }: { token: string }) {
     [libraries.advice],
   );
 
+  // Draft rows adapted to the shapes the Save-as-Template modals render.
+  // A medication with a drugId resolves its catalogue fields from
+  // libraries.drugs (DR-028); one without renders the free-text branch. A
+  // drugId whose entry has been deleted resolves to blanks rather than
+  // throwing — the lookup is allowed to miss.
+  const draftMedicinesForTemplate = useMemo<DraftMedicine[]>(
+    () =>
+      (draft?.medications ?? []).map((m) => {
+        if (!m.drugId) return { id: m.id, source: "freetext" as const, raw: m.medicine };
+        const cat = libraries.drugs.find((d) => d.id === m.drugId);
+        const dose = cat?.doses[0];
+        return {
+          id: m.id,
+          source: "library" as const,
+          brandName: cat?.brandName ?? "",
+          genericName: cat?.genericName ?? "",
+          drugClass: cat?.drugClass ?? "",
+          manufacturer: cat?.manufacturer ?? "",
+          doseForm: dose?.doseForm ?? "",
+          strength: dose?.strength ?? "",
+          schedule: m.phases[0]?.FREQUENCY ?? "",
+          doseBn: m.typeText,
+        };
+      }),
+    [draft?.medications, libraries.drugs],
+  );
+  const draftTestsForTemplate = useMemo<DraftTest[]>(
+    () =>
+      (draft?.tests ?? []).map((t) => {
+        const cat = libraries.tests.find((x) => x.name === t.text);
+        if (!cat) return { id: t.id, source: "freetext" as const, raw: t.text };
+        return {
+          id: t.id,
+          source: "library" as const,
+          panelName: cat.panelName,
+          name: cat.name,
+          abbreviation: cat.abbreviation,
+          specimen: cat.specimen,
+          method: cat.method,
+          unit: cat.unit,
+          ranges: cat.ranges,
+        };
+      }),
+    [draft?.tests, libraries.tests],
+  );
+  const draftAdvicesForTemplate = useMemo<DraftAdvice[]>(
+    () =>
+      (draft?.advice ?? []).map((a) =>
+        a.en
+          ? { id: a.id, source: "library" as const, title: a.en, descBn: a.bn, descEn: a.en }
+          : { id: a.id, source: "freetext" as const, title: a.bn },
+      ),
+    [draft?.advice],
+  );
+
+  // Vitals rendered as the modal's label/value rows; blank entries are
+  // dropped so an untouched prescription previews as empty.
+  const draftPhysicalForTemplate = useMemo(
+    () =>
+      ([
+        ["Pulse", draft?.vitals.pulse], ["B.P.", draft?.vitals.bp],
+        ["Temperature", draft?.vitals.temperature], ["Resp. Rate", draft?.vitals.respRate],
+        ["SpO₂", draft?.vitals.spo2], ["Weight", draft?.vitals.weight],
+        ["Height", draft?.vitals.height],
+      ] as const)
+        .filter(([, v]) => (v ?? "").trim() !== "")
+        .map(([label, v]) => ({ id: `vit-${label}`, label, value: v as string })),
+    [draft?.vitals],
+  );
+  const draftFollowUpForTemplate = useMemo(() => {
+    const f = draft?.followUp;
+    if (!f) return [];
+    const text = f.mode === "On"
+      ? (f.date ? `On ${f.date}` : "")
+      : (f.amount ? `After ${f.amount} ${f.unit}` : "");
+    const rows = text ? [{ id: "fu-when", text }] : [];
+    if (draft?.referTo?.trim()) rows.push({ id: "fu-refer", text: `Refer to ${draft.referTo}` });
+    return rows;
+  }, [draft?.followUp, draft?.referTo]);
+
   // ── Templates (DR-027) ────────────────────────────────────
   const templates = sutState.templates;
   const addTemplate = <K extends keyof typeof templates>(
@@ -16434,6 +16436,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
         )}
         {showSaveAdviceTemplate && (
           <SaveAdviceTemplateModal
+            advices={draftAdvicesForTemplate}
             onClose={() => setShowSaveAdviceTemplate(false)}
             onSave={(title) => {
               const advice = draft?.advice ?? [];
@@ -16466,6 +16469,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
         )}
         {showSaveTestTemplate && (
           <SaveTestTemplateModal
+            tests={draftTestsForTemplate}
             onClose={() => setShowSaveTestTemplate(false)}
             onSave={(title) => {
               const tests = draft?.tests ?? [];
@@ -16505,6 +16509,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
         )}
         {showSaveTreatmentTemplate && (
           <SaveTreatmentTemplateModal
+            medicines={draftMedicinesForTemplate}
             onClose={() => setShowSaveTreatmentTemplate(false)}
             onSave={(title) => {
               const medications = draft?.medications ?? [];
@@ -16519,6 +16524,17 @@ export default function PrescriptionApp({ token }: { token: string }) {
         )}
         {showSaveOverallTemplate && (
           <SaveOverallTemplateModal
+            medicines={draftMedicinesForTemplate}
+            tests={draftTestsForTemplate}
+            advices={draftAdvicesForTemplate}
+            physical={draftPhysicalForTemplate}
+            diagnoses={(draft?.diagnoses ?? []).map((d) => ({ id: d.id, text: d.text }))}
+            drugHistory={(draft?.drugHistory ?? []).map((d) => ({ id: d.id, text: d.text }))}
+            notes={noteText.trim() ? [{ id: "note", text: noteText }] : []}
+            followUp={draftFollowUpForTemplate}
+            chiefComplaints={(draft?.complaints ?? []).map((c) => ({ id: c.id, text: c.text, remark: c.remark }))}
+            chiefHistory={(draft?.history ?? []).map((h) => ({ id: h.id, text: h.text, remark: h.remark }))}
+            chiefSummary={summaryText}
             onClose={() => setShowSaveOverallTemplate(false)}
             onSave={(title) => {
               const payload = capturePayload();
