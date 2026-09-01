@@ -2836,7 +2836,7 @@ function TreatmentAddRows({
       {medications.map((m, i) => {
         const key = m.medicine.trim().toLowerCase();
         const owner = key ? firstSeen.get(key) : undefined;
-        const isDupe = !!owner && owner !== m.id && !dismissedDupes[m.id];
+        const isDupe = false;
         return (
           <TreatmentInputRowV2
             key={m.id}
