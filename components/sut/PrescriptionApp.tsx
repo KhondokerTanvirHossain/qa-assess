@@ -14171,7 +14171,6 @@ export default function PrescriptionApp({ token }: { token: string }) {
   );
   const completeBlockers = useMemo(() => {
     const out: string[] = [];
-    if ((draft?.diagnoses ?? []).length === 0) out.push("Add at least one diagnosis.");
     if ((draft?.medications ?? []).length === 0) out.push("Add at least one medication.");
     return out;
   }, [draft?.diagnoses, draft?.medications]);
