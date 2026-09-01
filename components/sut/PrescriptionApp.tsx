@@ -12959,11 +12959,8 @@ const todayISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-// Letters, spaces, hyphens, apostrophes and periods. No digits or symbols.
-const NAME_RE = /^[\p{L} .'-]+$/u;
 const validateName = (v: string): string | null => {
   if (v.trim() === "") return "Name is required.";
-  if (!NAME_RE.test(v.trim())) return "Letters, spaces, hyphens, apostrophes and periods only.";
   return null;
 };
 
