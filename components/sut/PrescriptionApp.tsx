@@ -14512,7 +14512,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
               // Already completed — reopen the preview without re-completing.
               if (isCompleted) { setShowPreview(true); return; }
               setCompleteAttempted(true);
-              if (completeBlockers.length > 0 || dateErr !== null) return;
+              if (completeBlockers.length > 0) return;
               completeDraft();
               setShowPreview(true);
             }}
@@ -14762,7 +14762,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
       {(() => {
         const msgs: string[] = [];
         if (headerTouched.fee && feeErr) msgs.push(`Fee: ${feeErr}`);
-        if (dateErr) msgs.push(`Date: ${dateErr}`);
+
         if (completeAttempted && !isCompleted) msgs.push(...completeBlockers);
         if (msgs.length === 0) return null;
         return (
