@@ -347,20 +347,20 @@ export const BUG_KEY: PlantedBug[] = [
   },
   {
     id: "BUG-18",
-    module: "advice",
-    title: "Editing advice while toggled to English overwrites the Bangla",
+    module: "toolbar",
+    title: "New Visit opens pre-filled with the previous visit's prescription",
     description:
-      "The advice row's onChange writes to the Bangla field regardless of which language is displayed. Verify by toggling a row to English, editing it, then toggling back — the Bangla text has been replaced by the English edit.",
+      "completeDraft moves the record into completed[] and locks it but no longer clears the draft slot, so startNewVisit finds the previous visit still there. Verify by completing a prescription, then starting a new visit — complaints, diagnoses, medications, tests and advice are all carried over instead of the form being empty.",
     repro:
-      "I switched an advice line to English, corrected a word, then switched back to Bangla and the Bangla text was gone — replaced by what I typed in English.",
+      "I finished one patient's prescription, then started a new visit for them and the whole previous prescription was already filled in — same diagnosis, same medicines, same tests. I have to clear it all by hand before I can write the new one.",
     tier: 3,
     weight: 8,
     matchHints: [
-      "editing English overwrites Bangla",
-      "advice loses Bengali text",
-      "translation replaced after edit",
-      "bangla advice overwritten",
-      "language toggle loses data",
+      "new visit shows previous prescription",
+      "form not cleared for new visit",
+      "old medicines carried over",
+      "previous visit data still there",
+      "new visit not starting blank",
     ],
   },
   {
@@ -383,20 +383,20 @@ export const BUG_KEY: PlantedBug[] = [
   },
   {
     id: "BUG-20",
-    module: "follow-up",
-    title: "Follow-up date computes from today rather than the prescription date",
+    module: "templates",
+    title: "Inserting an Overall template appends instead of replacing",
     description:
-      "The follow-up calculation uses the current date instead of the prescription's own date. Verify by backdating the prescription and setting \"After 7 Days\" — the resulting date is seven days from today, not from the prescription date.",
+      "The Overall insert handler concatenates the template's rows onto the existing sections rather than replacing them. Verify by entering a complaint, diagnosis, medicine, test and advice, then inserting an Overall template — every section ends up holding both sets. Distinct from HP-01, which is that vitals are overwritten at all; this is that insert stops replacing.",
     repro:
-      "I set the prescription date to an earlier date and chose follow up after 7 days. The follow-up date it worked out is seven days from today instead of seven days from the prescription date.",
+      "I had already written part of a prescription, then inserted an overall template and everything doubled up. The diagnosis I typed is still there and the template's is underneath it, same with the medicines and the tests.",
     tier: 3,
     weight: 8,
     matchHints: [
-      "follow up date wrong",
-      "follow up counts from today",
-      "follow up ignores prescription date",
-      "return date miscalculated",
-      "after 7 days computed incorrectly",
+      "template duplicates existing entries",
+      "insert adds instead of replacing",
+      "everything doubled after template",
+      "old and new rows both present",
+      "template does not clear the section",
     ],
   },
 

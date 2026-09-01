@@ -918,3 +918,55 @@ which looks more broken than empty dropdowns do.
 The largest unscored room in the SUT is gone. Coverage stands at 13 of 16
 modules. The bug key is unaffected — no bug was assigned to `clinical-signs`,
 so the set stays at 23 entries and weight 82.
+
+---
+
+## DR-031: BUG-18 and BUG-20 replaced — specified against absent features
+
+**Date:** 2026-08-30 · **Status:** Accepted — extends DR-029
+
+**Context**
+Both bugs were written against features the SUT does not have, and neither was
+plantable.
+
+BUG-18 required toggling an advice line to English. `showEn` is set to `false`
+when a row is added and is never flipped anywhere in the file; no toggle
+control exists and `git log -S` shows none ever did. A candidate cannot display
+the English text, so the Bangla being overwritten is unobservable.
+
+BUG-20 required a computed follow-up date. Mode, amount and unit are stored as
+three separate fields, never resolved into a date, never displayed, and
+excluded from the printout under DR-006. There is no resulting date to make
+wrong.
+
+This is the third occurrence of the same failure — the height ft→cm bug was
+dropped under DR-029 for exactly this reason. Writing the key before auditing
+the surface each bug needs is what produces it.
+
+**Decision**
+Replace both, keeping their ids, tier and weight so the arithmetic is
+untouched.
+
+BUG-18 becomes a `toolbar` bug: completion stops clearing the draft, so New
+Visit opens pre-filled with the previous visit's prescription. It still moves
+the record to `completed[]` and still locks it — only the clear is removed.
+
+BUG-20 becomes a `templates` bug: inserting an Overall template appends to
+every section instead of replacing. Distinct from HP-01, which is that vitals
+are overwritten at all; this is that insert stops replacing. Treatment, Test
+and Advice inserts keep replacing correctly, and that contrast is the tell.
+
+**Rejected**
+Building the missing features so the original bugs could be planted. An advice
+language toggle and a resolved follow-up date are both plausible product work,
+but adding UI to host a bug inverts the order — and touching the ported design
+to do it runs into CLAUDE.md §4.
+
+Dropping both and accepting eighteen bugs at weight 66. Tier 3 carries the
+detection weight; losing two of six would shift the assessment toward
+form-checking bugs a weaker candidate finds just as easily.
+
+**Consequences**
+The set stays at 23 entries, tier split 6/8/6, total weight 82, Tier 3 at 63%.
+Both replacements sit in surfaces verified to exist before the entry was
+rewritten — the check that should precede every future key entry.
