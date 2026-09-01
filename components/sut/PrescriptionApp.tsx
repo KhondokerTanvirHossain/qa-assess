@@ -11551,7 +11551,7 @@ function ManageDiagnosisModal({
     formCodeType !== selected.codeType ||
     formDesc !== (selected.description ?? "")
   );
-  const addIsValid = formName.trim() !== "";
+  const addIsValid = true;
   const canSave = mode === "edit" ? editHasChanges : addIsValid;
 
   const confirmTarget = confirmDeleteFor
