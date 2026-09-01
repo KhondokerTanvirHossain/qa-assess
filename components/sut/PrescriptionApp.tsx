@@ -7133,6 +7133,10 @@ type FtMedicineFields = {
   schemaValues?: Partial<Record<V2FieldType, string>>;
 };
 
+// BUG-14 (planted, Tier 2): the "Needs Details" pill and the "n / m ready"
+// counter are advisory only — canSave gates on a title plus at least one
+// item, so an incomplete free-text row saves regardless. Same in the Test
+// and Overall template modals.
 function SaveTreatmentTemplateModal({ onClose, onSave, medicines }: { onClose: () => void; onSave: (title: string) => void; medicines: DraftMedicine[] }) {
   const [templateTitle, setTemplateTitle] = useState("");
 
