@@ -14316,12 +14316,6 @@ export default function PrescriptionApp({ token }: { token: string }) {
           {/* Back */}
           <button
             onClick={() => {
-              if (isDirty) {
-                const ok = window.confirm(
-                  "This prescription has unsaved changes. Leave and discard them?",
-                );
-                if (!ok) return;
-              }
               if (window.history.length > 1) router.back();
               else router.push("/");
             }}
