@@ -10441,6 +10441,9 @@ export const MOCK_TESTS: TestItem[] = [
   },
 ];
 
+// BUG-13 (planted, Tier 2): a collapsed panel's detail view offers Edit but
+// no per-test Delete, so a panel member cannot be removed without first
+// making it standalone. Inherited from the ported design and kept as-is.
 function ManageTestModal({
   onClose,
   items,
