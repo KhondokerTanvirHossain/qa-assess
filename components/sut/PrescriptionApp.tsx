@@ -13360,12 +13360,19 @@ function NewPatientModal({
   const ageDobErr = dobErr ? null : validateAgeDobAgreement(fAgeAmount, fAgeUnit, fDob);
   const genderErr = fGender === "" ? "Select a gender." : null;
 
-  const canAdd =
-    nameErr === null &&
-    mobileErr === null &&
-    dobErr === null &&
-    ageDobErr === null &&
-    genderErr === null;
+  // Validity is only refreshed when a field is blurred, so filling the last
+  // required field leaves the button reading the previous state.
+  const validityRef = useRef(false);
+  const canAdd = validityRef.current;
+  useEffect(() => {
+    validityRef.current =
+      validateName(fName) === null &&
+      validateMobile(fMobileId) === null &&
+      validateDob(fDob) === null &&
+      validateAgeDobAgreement(fAgeAmount, fAgeUnit, fDob) === null &&
+      fGender !== "";
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [touched]);
 
   const addNewPatient = () => {
     setSubmitted(true);
