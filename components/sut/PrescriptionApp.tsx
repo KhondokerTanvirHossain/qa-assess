@@ -12968,7 +12968,6 @@ const validateName = (v: string): string | null => {
 const validateMobile = (v: string): string | null => {
   const digits = v.replace(/[^\d]/g, "");
   if (digits === "") return "Mobile number is required.";
-  if (!/^01\d{9}$/.test(digits)) return "Must be 11 digits starting 01.";
   return null;
 };
 
