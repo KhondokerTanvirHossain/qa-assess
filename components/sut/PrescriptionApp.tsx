@@ -15417,18 +15417,18 @@ export default function PrescriptionApp({ token }: { token: string }) {
             templates={templates.overall}
             onClose={() => setShowInsertOverallTemplate(false)}
             onInsert={(t) => {
-              // Overall replaces all nine sections. Vitals and follow-up are
-              // overwritten by the template's values (DR-027).
+              // Overall merges the template into the prescription. Vitals and
+              // follow-up take the template's values (DR-027).
               const pl = t.payload;
               updateDraft({
-                complaints: reId(pl.complaints),
-                history: reId(pl.history),
-                drugHistory: reId(pl.drugHistory),
+                complaints: [...(draft?.complaints ?? []), ...reId(pl.complaints)],
+                history: [...(draft?.history ?? []), ...reId(pl.history)],
+                drugHistory: [...(draft?.drugHistory ?? []), ...reId(pl.drugHistory)],
                 vitals: { ...pl.vitals },
-                diagnoses: reId(pl.diagnoses),
-                medications: reId(pl.medications),
-                tests: reId(pl.tests),
-                advice: reId(pl.advice),
+                diagnoses: [...(draft?.diagnoses ?? []), ...reId(pl.diagnoses)],
+                medications: [...(draft?.medications ?? []), ...reId(pl.medications)],
+                tests: [...(draft?.tests ?? []), ...reId(pl.tests)],
+                advice: [...(draft?.advice ?? []), ...reId(pl.advice)],
                 followUp: { ...pl.followUp },
                 referTo: pl.referTo,
               });
