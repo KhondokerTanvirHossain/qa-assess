@@ -14184,9 +14184,16 @@ export default function PrescriptionApp({ token }: { token: string }) {
 
   // Visit options come from the patient's completed count — every visit type
   // increments (DR-009). The prototype hardcoded three options.
-  const completedCount = patient.id
-    ? (sutState.prescriptions[patient.id]?.completed.length ?? 0)
-    : 0;
+  // Snapshot the completed count when the patient is loaded; later
+  // completions do not refresh it.
+  const completedCountRef = useRef(0);
+  useEffect(() => {
+    completedCountRef.current = patient.id
+      ? (sutState.prescriptions[patient.id]?.completed.length ?? 0)
+      : 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patient.id]);
+  const completedCount = completedCountRef.current;
   const visitTotal = completedCount + (isCompleted ? 0 : 1);
   const visitOptions = Array.from({ length: visitTotal }, (_, i) => `Visit ${visitTotal - i}/${visitTotal}`);
 
