@@ -15143,7 +15143,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
                         <X
                           size={13}
                           className="text-[#8c9198] hover:text-[#dc2626] transition-colors cursor-pointer shrink-0"
-                          onClick={() => setSavedTests((p) => p.filter((r) => r.id !== t.id))}
+                          onClick={() => setSavedTests((p) => p.filter((_, j) => j !== i + 1))}
                         />
                       </div>
                     ))}
