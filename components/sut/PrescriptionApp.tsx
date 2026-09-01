@@ -13020,6 +13020,11 @@ const validateVital = (field: string, raw: string): string | null => {
   if (!rule) return null;
   const n = Number(v);
   if (!Number.isFinite(n)) return "Enter a number.";
+  // SpO2 checks only the lower bound.
+  if (field === "spo2") {
+    if (n < rule.min) return `Must be ${rule.min}–${rule.max} ${rule.unit}.`;
+    return null;
+  }
   if (n < rule.min || n > rule.max) return `Must be ${rule.min}–${rule.max} ${rule.unit}.`;
   return null;
 };
