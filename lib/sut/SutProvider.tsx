@@ -71,6 +71,7 @@ function createDraft(patientId: string): Prescription {
       height: "",
     },
     physicalFindingsNote: "",
+    testResults: [],
     complaints: [],
     history: [],
     drugHistory: [],

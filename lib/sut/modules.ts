@@ -8,7 +8,7 @@
 export const MODULES = [
   "patient", "patient-registration", "vitals", "complaints", "history",
   "drug-history", "diagnosis", "treatment", "investigation", "advice",
-  "follow-up", "clinical-signs", "test-results", "templates",
+  "follow-up", "test-results", "templates",
   "master-data", "preview", "toolbar",
 ] as const;
 

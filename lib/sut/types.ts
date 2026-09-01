@@ -15,6 +15,7 @@ import type {
   V2FieldType,
   AdviceLibEntry,
   SavedAdvice,
+  TestResultRow,
 } from "@/components/sut/PrescriptionApp";
 
 export type {
@@ -28,6 +29,7 @@ export type {
   V2FieldType,
   AdviceLibEntry,
   SavedAdvice,
+  TestResultRow,
 };
 
 /** A list row that owns a stable id. Ids are generated on add, live for the
@@ -66,6 +68,8 @@ export type Prescription = {
     height: string;
   };
   physicalFindingsNote: string;
+  /** Reference data attached to ordered investigations. Not printed. */
+  testResults: TestResultRow[];
   complaints: { id: string; text: string; remark: string }[];
   history: { id: string; text: string; remark: string }[];
   drugHistory: ListRow[];

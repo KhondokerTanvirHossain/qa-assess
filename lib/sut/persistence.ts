@@ -13,8 +13,9 @@ const KEY_PREFIX = "qa-assess:sut:";
 // disposable per-candidate state (DR-005), so migration is not worth its cost
 // (DR-025). Version 2 introduced stable ids on draft list rows; version 3
 // replaced the lossy template display shapes with TemplatePayload (DR-027);
-// version 4 widened libraries to full catalogue records (DR-028).
-const SCHEMA_VERSION = 4;
+// version 4 widened libraries to full catalogue records (DR-028); version 5
+// added testResults to the draft and removed the clinical-signs module.
+const SCHEMA_VERSION = 5;
 
 type Envelope = { version: number; state: SutState };
 

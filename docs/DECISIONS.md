@@ -887,3 +887,34 @@ validator becomes the tell.
 
 Adding a bug later means editing one file, and `lib/scoring.ts` will not
 compile against a key whose modules drift from the `Module` union (DR-023).
+
+---
+
+## DR-030: ClinicalSignsModal removed
+
+**Date:** 2026-08-30 · **Status:** Accepted — narrows DR-003
+
+**Context**
+DR-003 kept every ported module and required them to work. `ClinicalSignsModal`
+cannot be made to work: 93 `ModalSelect` controls are propless with no option
+lists, 123 `Checkbox` controls are styled divs rather than inputs, and every
+displayed value is a JSX literal. The clinical vocabulary for the dropdowns is
+not available from the production app without significant effort.
+
+**Decision**
+Remove the modal, its sub-panels, and its trigger. Remove `clinical-signs` from
+the `Module` union.
+
+**Rejected**
+Inventing the option lists. Ninety-three dropdowns of examination findings
+would put guessed clinical terms into a medical fixture that twelve QA
+candidates will read closely — an accidental defect of exactly the kind
+CLAUDE.md §5 forbids.
+
+Removing only the empty dropdowns. Leaves labelled grids with no controls,
+which looks more broken than empty dropdowns do.
+
+**Consequences**
+The largest unscored room in the SUT is gone. Coverage stands at 13 of 16
+modules. The bug key is unaffected — no bug was assigned to `clinical-signs`,
+so the set stays at 23 entries and weight 82.

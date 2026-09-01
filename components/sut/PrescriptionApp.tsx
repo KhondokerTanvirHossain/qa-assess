@@ -1136,6 +1136,7 @@ const EMPTY_COMPLAINTS: { id: string; text: string; remark: string }[] = [];
 const EMPTY_ROWS: SutListRow[] = [];
 const EMPTY_ADVICE: (SavedAdvice & { id: string })[] = [];
 const EMPTY_MEDICATIONS: Medication[] = [];
+const EMPTY_TEST_RESULTS: TestResultRow[] = [];
 
 // Row ids are generated on add and live for the row's lifetime. Never derived
 // from content or index (DR-025) — a content-derived key remounts the input on
@@ -1420,38 +1421,6 @@ function MaximizeButton() {
           alt="Expand"
           style={{ filter: hover ? "brightness(0) invert(1)" : "none" }}
         />
-      </button>
-    </Tooltip>
-  );
-}
-
-// A single action rendered directly in the header (not collapsed into the
-// hamburger) — same green-box hover as MicButton. Used when a section has only
-// one action, e.g. Physical Findings → Clinical signs. The icon inherits the
-// wrapper colour (green → white on hover).
-function HeaderIconButton({
-  label,
-  onClick,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  const [hover, setHover] = useState(false);
-  return (
-    <Tooltip label={label}>
-      <button
-        type="button"
-        onClick={onClick}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        className="flex items-center justify-center cursor-pointer rounded-[7px] transition-colors"
-        style={{ background: hover ? "#358C11" : "transparent", border: "none", padding: 4, marginTop: -4, marginBottom: -4 }}
-      >
-        <span className="flex items-center" style={{ color: hover ? "#ffffff" : "#064232" }}>
-          {children}
-        </span>
       </button>
     </Tooltip>
   );
@@ -5222,1349 +5191,31 @@ function ReferToInput({
 const inputCls = "h-[28px] px-[8px] rounded-[6px] text-[13px] text-[#0F100F] outline-none";
 const inputStyle = { background: "#fff", border: "1px solid #cfd5e0" };
 
-function Checkbox({ label, checked = false }: { label: string; checked?: boolean }) {
-  return (
-    <label className="flex items-center gap-[5px] cursor-pointer select-none">
-      <div
-        className="w-[14px] h-[14px] rounded-[3px] shrink-0 flex items-center justify-center"
-        style={{
-          background: checked ? "#358C11" : "white",
-          border: checked ? "none" : "1.5px solid #c4c9d4",
-        }}
-      >
-        {checked && (
-          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-            <path d="M1 3L3.5 5.5L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </div>
-      <span className="text-[13px] text-[#0F100F]">{label}</span>
-    </label>
-  );
-}
-
-function ModalSelect({ placeholder = "—", width = "w-full" }: { placeholder?: string; width?: string }) {
-  return (
-    <div className={`relative ${width}`}>
-      <select className={`${inputCls} ${width} pr-[24px] appearance-none cursor-pointer`} style={inputStyle}>
-        <option value="">{placeholder}</option>
-      </select>
-      <ChevronDown size={11} className="absolute right-[7px] top-1/2 -translate-y-1/2 text-[#8c9198] pointer-events-none" />
-    </div>
-  );
-}
-
-function ModalInput({ value = "", placeholder = "", width = "w-full" }: { value?: string; placeholder?: string; width?: string }) {
-  return (
-    <input
-      defaultValue={value}
-      placeholder={placeholder}
-      className={`${inputCls} ${width}`}
-      style={inputStyle}
-    />
-  );
-}
-
-function SectionDivider({ title }: { title: string }) {
-  return (
-    <div className="flex items-center gap-[8px]">
-      <span className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#064232] shrink-0">{title}</span>
-      <div className="flex-1 h-px bg-[#e7ebf0]" />
-    </div>
-  );
-}
-
-function AccordionSection({ title, open, onToggle, children }: { title: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
-  return (
-    <div className="rounded-[8px] overflow-hidden shrink-0" style={{ border: "1px solid #eaecf0" }}>
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-[14px] py-[8px] bg-white border-0 cursor-pointer"
-      >
-        <span className="text-[12px] font-bold uppercase tracking-[0.5px] text-[#064232]">{title}</span>
-        <ChevronDown
-          size={14}
-          className="text-[#8c9198] transition-transform"
-          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
-        />
-      </button>
-      {open && (
-        <div className="p-[14px]">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Neurological Tab ───────────────────────────────────────
-
-function FieldLabel({ children, color = "#5a6070" }: { children: React.ReactNode; color?: string }) {
-  return <span className="text-[12px] font-medium" style={{ color }}>{children}</span>;
-}
-
-function FieldStack({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-[4px]">
-      <FieldLabel color="#5a6070">{label}</FieldLabel>
-      {children}
-    </div>
-  );
-}
-
-function NerveSectionTitle({ children }: { children: React.ReactNode }) {
-  return <span className="text-[12px] font-bold text-[#358C11]">{children}</span>;
-}
-
-/// Shared wrapper for Physical Findings modal sections.
-/// Very light grey background + subtle border + consistent padding.
-function SectionBox({ children, gap = 10 }: { children: React.ReactNode; gap?: number }) {
-  return (
-    <div
-      className="rounded-[10px] px-[14px] py-[12px] flex flex-col"
-      style={{
-        background: "#F7F8FA",
-        border: "1px solid #eef0f4",
-        gap,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-// ─── Sub-tab 1: Higher Cerebral Function ───
-function HigherCerebralFunction() {
-  return (
-    <div className="flex flex-col gap-[10px]">
-      <Checkbox label="Intact" />
-
-      {/* Two columns: Left = GCS + MMSE, Right = Memory/Intelligence/Speech */}
-      <SectionBox>
-      <div className="grid grid-cols-2 gap-[24px]">
-
-        {/* ━━━ LEFT COLUMN: Glasgow Coma Score → MMSE Score ━━━ */}
-        <div className="flex flex-col gap-[12px]">
-          <span className="text-[12px] font-bold text-[#358C11]">Glasgow Coma Score:</span>
-
-          {/* Eye-opening */}
-          <div className="flex flex-col gap-[4px]">
-            <FieldLabel color="#5a6070">Eye-opening</FieldLabel>
-            <div className="flex items-center gap-[6px]">
-              <div className="flex-1"><ModalSelect placeholder="Opens eyes in response to painful stimuli" /></div>
-              <span className="text-[12px] font-bold text-[#5a6070]">E</span>
-              <ModalInput value="2" width="w-[30px]" />
-            </div>
-          </div>
-
-          {/* Best verbal response */}
-          <div className="flex flex-col gap-[4px]">
-            <FieldLabel color="#5a6070">Best verbal response</FieldLabel>
-            <div className="flex items-center gap-[6px]">
-              <div className="flex-1"><ModalSelect placeholder="Inappropriate words" /></div>
-              <span className="text-[12px] font-bold text-[#5a6070]">V</span>
-              <ModalInput value="3" width="w-[30px]" />
-            </div>
-          </div>
-
-          {/* Best motor response */}
-          <div className="flex flex-col gap-[4px]">
-            <FieldLabel color="#5a6070">Best motor response</FieldLabel>
-            <div className="flex items-center gap-[6px]">
-              <div className="flex-1"><ModalSelect placeholder="Obeys commands" /></div>
-              <span className="text-[12px] font-bold text-[#5a6070]">M</span>
-              <ModalInput value="6" width="w-[30px]" />
-            </div>
-          </div>
-
-          {/* GCS computed */}
-          <div className="flex flex-col gap-[4px]">
-            <FieldLabel color="#5a6070">GCS</FieldLabel>
-            <div className="px-[10px] h-[28px] rounded-[6px] flex items-center text-[13px] font-semibold text-[#0F100F]" style={{ background: "#ffffff", border: "1px solid #e7ebf0" }}>
-              11 (E2 V3 M6)
-            </div>
-          </div>
-
-          {/* MMSE Score — button + score input */}
-          <div className="flex items-center gap-[8px]">
-            <button
-              className="px-[14px] h-[28px] rounded-[6px] text-[12px] font-semibold text-[#358C11] cursor-pointer shrink-0"
-              style={{ background: "white", border: "1.5px solid #358C11" }}
-            >
-              MMSE Score
-            </button>
-            <ModalInput width="w-[80px]" />
-          </div>
-        </div>
-
-        {/* ━━━ RIGHT COLUMN: Memory loss, Intelligence, Speech ━━━ */}
-        <div className="flex flex-col gap-[12px]">
-          {/* Spacer to align "Memory loss" with "Eye-opening" (matches Glasgow Coma Score header height) */}
-          <span className="text-[12px] font-bold invisible">·</span>
-
-          {/* Memory loss */}
-          <div className="flex flex-col gap-[4px]">
-            <FieldLabel color="#5a6070">Memory loss</FieldLabel>
-            <ModalSelect placeholder="Global" />
-          </div>
-
-          {/* Intelligence */}
-          <div className="flex flex-col gap-[4px]">
-            <FieldLabel color="#5a6070">Intelligence</FieldLabel>
-            <ModalSelect placeholder="Subnormal" />
-          </div>
-
-          {/* Speech */}
-          <div className="flex flex-col gap-[6px]">
-            <FieldLabel color="#5a6070">Speech</FieldLabel>
-            <div className="grid grid-cols-2 gap-x-[14px] gap-y-[6px]">
-              <Checkbox label="Normal" />
-              <Checkbox label="Staccato" checked />
-              <Checkbox label="Slurred" />
-              <Checkbox label="Sensory aphasia" checked />
-              <Checkbox label="Motor aphasia" />
-              <Checkbox label="Bulbar dysarthria" checked />
-              <Checkbox label="Spastic dysarthria" />
-              <Checkbox label="Dysphonia" />
-              <Checkbox label="Global aphasia" />
-              <Checkbox label="Ataxic dysarthria" />
-            </div>
-          </div>
-        </div>
-      </div>
-      </SectionBox>
-    </div>
-  );
-}
-
-// ─── Table-style Cranial Nerves (v2) ───
-
-function CNTable({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="rounded-[8px] overflow-hidden"
-      style={{ border: "1px solid #D3D9E4" }}
-    >
-      {/* Header row */}
-      <div
-        className="grid"
-        style={{
-          gridTemplateColumns: "140px 1fr 1fr",
-          borderBottom: "2px solid #D3D9E4",
-        }}
-      >
-        <div className="px-[14px] py-[10px]" style={{ background: "#E3E7ED" }} />
-        <div className="px-[14px] py-[10px] text-[13px] font-semibold text-[#0F100F] text-center flex items-center justify-center" style={{ background: "#ffffff" }}>Left</div>
-        <div className="px-[14px] py-[10px] text-[13px] font-semibold text-[#0F100F] text-center flex items-center justify-center" style={{ background: "#FAFBFC" }}>Right</div>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function CNRow({ title, left, right }: { title: string; left: React.ReactNode; right: React.ReactNode; index?: number }) {
-  return (
-    <div
-      className="grid items-stretch"
-      style={{
-        gridTemplateColumns: "140px 1fr 1fr",
-        borderBottom: "2px solid #D3D9E4",
-      }}
-    >
-      <div
-        className="px-[14px] py-[14px] flex items-center text-[13px] font-semibold text-[#5a6070]"
-        style={{ background: "#E3E7ED" }}
-      >
-        {title}
-      </div>
-      <div className="px-[14px] py-[14px]" style={{ background: "#ffffff" }}>
-        {left}
-      </div>
-      <div className="px-[14px] py-[14px]" style={{ background: "#FAFBFC" }}>
-        {right}
-      </div>
-    </div>
-  );
-}
-
-function OpticSidePanel2() {
-  return (
-    <div className="flex flex-col gap-[10px]">
-      <div className="grid grid-cols-2 gap-[8px]">
-        <FieldStack label="Near vision"><ModalSelect /></FieldStack>
-        <FieldStack label="Colour vision"><ModalSelect /></FieldStack>
-        <FieldStack label="Distant vision"><ModalSelect /></FieldStack>
-        <FieldStack label="Visual field"><ModalSelect /></FieldStack>
-      </div>
-      <div className="flex flex-col gap-[6px]">
-        <FieldLabel color="#5a6070">Fundoscopy</FieldLabel>
-        <Checkbox label="Normal" />
-        <div className="grid grid-cols-2 gap-[6px]">
-          <Checkbox label="Papilloedema" />
-          <Checkbox label="Optic atrophy" />
-          <Checkbox label="DM retinopathy" />
-          <Checkbox label="HTN retinopathy" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CranialNervesIIV2() {
-  return (
-    <CNTable>
-      <CNRow
-        index={0}
-        title="I (Olfactory)"
-        left={<ModalSelect />}
-        right={<ModalSelect />}
-      />
-      <CNRow
-        index={1}
-        title="II (Optic)"
-        left={<OpticSidePanel2 />}
-        right={<OpticSidePanel2 />}
-      />
-      <CNRow
-        index={2}
-        title="III (Oculomotor)"
-        left={
-          <div className="flex flex-col gap-[8px]">
-            <div className="flex items-center gap-[14px]">
-              <Checkbox label="Normal" />
-              <Checkbox label="Palsy" />
-            </div>
-            <ModalSelect />
-          </div>
-        }
-        right={
-          <div className="flex flex-col gap-[8px]">
-            <div className="flex items-center gap-[14px]">
-              <Checkbox label="Normal" />
-              <Checkbox label="Palsy" />
-            </div>
-            <ModalSelect />
-          </div>
-        }
-      />
-      <CNRow
-        index={3}
-        title="IV (Trochlear)"
-        left={
-          <div className="flex items-center gap-[14px]">
-            <Checkbox label="Normal" />
-            <Checkbox label="Palsy" />
-          </div>
-        }
-        right={
-          <div className="flex items-center gap-[14px]">
-            <Checkbox label="Normal" />
-            <Checkbox label="Palsy" />
-          </div>
-        }
-      />
-    </CNTable>
-  );
-}
-
-function CranialNervesVXII2() {
-  return (
-    <CNTable>
-      <CNRow
-        index={0}
-        title="V (Trigeminal)"
-        left={<TrigeminalSidePanel />}
-        right={<TrigeminalSidePanel />}
-      />
-      <CNRow
-        index={1}
-        title="VI (Abducens)"
-        left={<NormalPalsySide />}
-        right={<NormalPalsySide />}
-      />
-      <CNRow
-        index={2}
-        title="VII (Facial)"
-        left={<NormalPalsySide withInput />}
-        right={<NormalPalsySide withInput />}
-      />
-      <CNRow
-        index={3}
-        title="VIII (Auditory)"
-        left={<AuditorySide />}
-        right={<AuditorySide />}
-      />
-      <CNRow
-        index={4}
-        title="IX (Glossophar.)"
-        left={<NormalPalsySide />}
-        right={<NormalPalsySide />}
-      />
-      <CNRow
-        index={5}
-        title="X (Vagus)"
-        left={<NormalPalsySide />}
-        right={<NormalPalsySide />}
-      />
-      <CNRow
-        index={6}
-        title="XI (Accessory)"
-        left={<NormalPalsySide />}
-        right={<NormalPalsySide />}
-      />
-      <CNRow
-        index={7}
-        title="XII (Hypoglossal)"
-        left={<NormalPalsySide />}
-        right={<NormalPalsySide />}
-      />
-    </CNTable>
-  );
-}
-
-function CranialNerves2() {
-  const [innerTab, setInnerTab] = useState("i-iv");
-
-  return (
-    <div className="flex flex-col gap-[12px]">
-      <Checkbox label="All intact" />
-
-      {/* Inner sub-tabs (no full underline, only active tab has underline) */}
-      <div className="flex">
-        {[
-          { key: "i-iv", label: "I-IV" },
-          { key: "v-xii", label: "V-XII" },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setInnerTab(t.key)}
-            className="px-[16px] py-[6px] text-[12px] font-semibold cursor-pointer bg-transparent"
-            style={
-              innerTab === t.key
-                ? { color: "#064232", border: "none", borderBottom: "2px solid #358C11" }
-                : { color: "#5a6070", border: "none", borderBottom: "2px solid transparent" }
-            }
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {innerTab === "i-iv" && <CranialNervesIIV2 />}
-      {innerTab === "v-xii" && <CranialNervesVXII2 />}
-
-      <div className="pt-[6px]">
-        <Checkbox label="All other CNs are normal" />
-      </div>
-    </div>
-  );
-}
-
-function TrigeminalSidePanel() {
-  return (
-    <div className="flex flex-col gap-[10px]">
-      <FieldStack label="Motor"><ModalSelect /></FieldStack>
-      <div className="grid grid-cols-3 gap-[6px]">
-        <FieldStack label="Maxil."><ModalSelect /></FieldStack>
-        <FieldStack label="Mandib."><ModalSelect /></FieldStack>
-        <FieldStack label="Ophth."><ModalSelect /></FieldStack>
-      </div>
-      <div className="grid grid-cols-2 gap-[8px]">
-        <FieldStack label="Jaw jerk"><ModalSelect /></FieldStack>
-        <FieldStack label="Corn. refl"><ModalSelect /></FieldStack>
-      </div>
-    </div>
-  );
-}
-
-function NormalPalsySide({ withInput = false }: { withInput?: boolean }) {
-  return (
-    <div className="flex flex-col gap-[6px]">
-      <div className="flex items-center gap-[14px]">
-        <Checkbox label="Normal" />
-        <Checkbox label="Palsy" />
-      </div>
-      {withInput && <ModalSelect />}
-    </div>
-  );
-}
-
-function AuditorySide() {
-  return (
-    <div className="grid grid-cols-2 gap-[8px]">
-      <FieldStack label="Hearing"><ModalSelect /></FieldStack>
-      <FieldStack label="Balance"><ModalSelect /></FieldStack>
-    </div>
-  );
-}
-
-// ─── Sub-tab 3: Motor Function ───
-function RadioPill({ label }: { label: string }) {
-  return (
-    <label className="flex items-center gap-[5px] cursor-pointer">
-      <span className="w-[14px] h-[14px] rounded-full" style={{ border: "1.5px solid #c4c9d4" }} />
-      <span className="text-[13px] text-[#0F100F]">{label}</span>
-    </label>
-  );
-}
-
-const UPPER_LIMB_JOINTS: { name: string; actions: string[] }[] = [
-  { name: "Shoulder", actions: ["Abduc.", "Adduc.", "Flexion", "Exten."] },
-  { name: "Elbow", actions: ["Flexion", "Exten."] },
-  { name: "Wrist", actions: ["Flexion", "Exten."] },
-  { name: "Finger", actions: ["Abduc.", "Adduc.", "Flexion", "Exten."] },
-  { name: "Thumb", actions: ["Oppos.", "Exten."] },
-];
-
-const LOWER_LIMB_JOINTS: { name: string; actions: string[] }[] = [
-  { name: "Hip", actions: ["Abduc.", "Adduc.", "Flexion", "Exten."] },
-  { name: "Knee", actions: ["Flexion", "Exten."] },
-  { name: "Ankle", actions: ["Dorsiflex.", "Plantar flex.", "Inversion", "Eversion"] },
-  { name: "Big Toe", actions: ["Dorsiflex.", "Plantar flex."] },
-];
-
-function JointPowerRow({ name, actions }: { name: string; actions: string[] }) {
-  return (
-    <div className="flex items-start gap-[10px]">
-      <span
-        className="text-[12px] font-semibold text-[#5a6070] shrink-0"
-        style={{ width: 56, paddingTop: 16 }}
-      >
-        {name}
-      </span>
-      <div className="flex gap-[4px]">
-        {actions.map((a, i) => (
-          <div key={i} className="flex flex-col gap-[3px]">
-            <span className="text-[10px] text-[#8c9198] text-center leading-[1.2]">{a}</span>
-            <input
-              type="text"
-              className="text-center outline-none font-[DM_Sans]"
-              style={{
-                width: 46,
-                height: 26,
-                borderRadius: 6,
-                border: "1px solid #e3e6eb",
-                background: "#fff",
-                fontSize: 13,
-                color: "#0F100F",
-                padding: "0 4px",
-              }}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PowerJointsGrid() {
-  return (
-    <div className="grid gap-x-[20px]" style={{ gridTemplateColumns: "1fr 1px 1fr" }}>
-      {/* Upper limb */}
-      <div className="flex flex-col gap-[10px]">
-        {UPPER_LIMB_JOINTS.map((j) => (
-          <JointPowerRow key={j.name} name={j.name} actions={j.actions} />
-        ))}
-      </div>
-
-      {/* Divider */}
-      <div style={{ background: "#e3e6eb" }} />
-
-      {/* Lower limb */}
-      <div className="flex flex-col gap-[10px]">
-        {LOWER_LIMB_JOINTS.map((j) => (
-          <JointPowerRow key={j.name} name={j.name} actions={j.actions} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MotorFunction() {
-  const [powerSide, setPowerSide] = useState("right");
-  const limbs = ["Rt upper limb", "Rt lower limb", "Lt upper limb", "Lt lower limb"];
-
-  return (
-    <div className="flex flex-col gap-[10px]">
-      <Checkbox label="Intact" />
-
-      {/* Inspection / Bulk / Tone matrix */}
-      <SectionBox>
-        <div className="grid grid-cols-[110px_1fr_1fr_1fr_1fr] gap-x-[10px] gap-y-[8px] items-center">
-          <span />
-          {limbs.map((l) => (
-            <span key={l} className="text-[12px] font-semibold text-[#5a6070] text-center">{l}</span>
-          ))}
-
-          <FieldLabel color="#5a6070">Inspection:</FieldLabel>
-          <ModalSelect /><ModalSelect /><ModalSelect /><ModalSelect />
-
-          <FieldLabel color="#5a6070">Bulk:</FieldLabel>
-          <ModalSelect /><ModalSelect /><ModalSelect /><ModalSelect />
-
-          <FieldLabel color="#5a6070">Tone:</FieldLabel>
-          <ModalSelect /><ModalSelect /><ModalSelect /><ModalSelect />
-        </div>
-
-        <div className="flex items-center gap-[20px]">
-          <RadioPill label="Quadriplegia" />
-          <RadioPill label="Quadriparesis" />
-        </div>
-      </SectionBox>
-
-      {/* Power section */}
-      <SectionBox>
-        <NerveSectionTitle>Power:</NerveSectionTitle>
-
-        {/* Side sub-tabs */}
-        <div className="flex" style={{ borderBottom: "1px solid #e7ebf0" }}>
-          {[
-            { key: "right", label: "Power right side" },
-            { key: "left", label: "Power left side" },
-          ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setPowerSide(t.key)}
-              className="px-[14px] py-[6px] text-[12px] font-semibold cursor-pointer"
-              style={
-                powerSide === t.key
-                  ? { background: "white", color: "#064232", marginBottom: "-1px", border: "none", borderBottom: "2px solid #358C11" }
-                  : { background: "transparent", color: "#5a6070", border: "none" }
-              }
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-[16px] flex-wrap">
-          <Checkbox label="Intact" />
-          <RadioPill label="Hemiplegia" />
-          <RadioPill label="Hemiparesis" />
-          <Checkbox label="U limb paralysis" />
-          <Checkbox label="L limb paralysis" />
-          <Checkbox label="U limb paresis" />
-          <Checkbox label="L limb paresis" />
-        </div>
-
-        <PowerJointsGrid />
-      </SectionBox>
-
-      {/* Additional findings */}
-      <SectionBox>
-        <FieldStack label="Additional findings"><ModalInput /></FieldStack>
-      </SectionBox>
-    </div>
-  );
-}
-
-// ─── Sub-tab 4: Sensory Function ───
-function SensoryFunction() {
-  const limbs = ["Rt upper limb", "Rt lower limb", "Lt upper limb", "Lt lower limb"];
-  const cols = ["Fine touch", "Pain/Temp", "Position sense", "Vibration sense"];
-
-  return (
-    <div className="flex flex-col gap-[10px]">
-      <Checkbox label="Intact" />
-
-      {/* All modalities + matrix */}
-      <SectionBox>
-        <div className="grid grid-cols-[110px_1fr] gap-x-[10px] items-center">
-          <FieldLabel color="#5a6070">All modalities:</FieldLabel>
-          <div className="flex items-center gap-[8px]">
-            <ModalSelect placeholder="absent" width="w-[140px]" />
-            <span className="text-[12px] text-[#5a6070]">on</span>
-            <ModalSelect placeholder="right" width="w-[100px]" />
-            <span className="text-[12px] text-[#5a6070]">side</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-[110px_1fr_1fr_1fr_1fr] gap-x-[10px] gap-y-[8px] items-center">
-          <span />
-          {cols.map((c) => (
-            <span key={c} className="text-[12px] font-semibold text-[#5a6070] text-center">{c}</span>
-          ))}
-
-          {limbs.map((limb) => (
-            <Fragment key={limb}>
-              <FieldLabel color="#5a6070">{limb}:</FieldLabel>
-              <ModalSelect /><ModalSelect /><ModalSelect /><ModalSelect />
-            </Fragment>
-          ))}
-        </div>
-      </SectionBox>
-
-      {/* Cortical examination */}
-      <SectionBox>
-        <NerveSectionTitle>Cortical examination:</NerveSectionTitle>
-        <div className="grid grid-cols-3 gap-[12px]">
-          <FieldStack label="Cortical Senses"><ModalSelect placeholder="Impaired" /></FieldStack>
-          <FieldStack label="Sensory level at"><ModalInput value="abc" /></FieldStack>
-          <FieldStack label="Romberg's test"><ModalSelect placeholder="positive" /></FieldStack>
-        </div>
-      </SectionBox>
-    </div>
-  );
-}
-
-// ─── Sub-tab 5: Others ───
-function NeurologicalOthers() {
-  const reflexCols = ["All", "Knee", "Ankle", "Biceps", "Triceps", "Supinator", "Plantar"];
-  const cerebellarFields = [
-    "Nystagmus",
-    "Past-pointing",
-    "Rebound phenomenon",
-    "Dysdiadokokinesia",
-    "Finger-nose test",
-    "Heel-shin test",
-  ];
-
-  return (
-    <div className="flex flex-col gap-[10px]">
-
-      {/* Gait + Neck stiffness */}
-      <SectionBox>
-        <NerveSectionTitle>General observations:</NerveSectionTitle>
-        <div className="grid grid-cols-2 gap-[16px]">
-          <FieldStack label="Gait"><ModalSelect placeholder="high-stepping" /></FieldStack>
-          <FieldStack label="Neck stiffness"><ModalSelect /></FieldStack>
-        </div>
-      </SectionBox>
-
-      {/* Involuntary movements */}
-      <SectionBox>
-        <NerveSectionTitle>Involuntary movements:</NerveSectionTitle>
-        <Checkbox label="None" />
-        <div className="grid grid-cols-4 gap-x-[14px] gap-y-[6px]">
-          <Checkbox label="Fine tremor" />
-          <Checkbox label="Resting tremor" />
-          <Checkbox label="Dystonia" />
-          <Checkbox label="Chorea" />
-          <Checkbox label="Athetosis" />
-          <Checkbox label="Myoclonus" />
-          <Checkbox label="Tics" />
-          <Checkbox label="Orofacial dyskinesia" />
-          <Checkbox label="Hemibalismus" />
-        </div>
-      </SectionBox>
-
-      {/* Cerebellar Signs */}
-      <SectionBox>
-        <NerveSectionTitle>Cerebellar Signs:</NerveSectionTitle>
-        <Checkbox label="None" />
-        <div className="grid grid-cols-2 gap-x-[20px] gap-y-[8px]">
-          {cerebellarFields.map((label) => (
-            <div key={label} className="grid grid-cols-[130px_1fr_1fr] gap-[6px] items-center">
-              <FieldLabel color="#5a6070">{label}:</FieldLabel>
-              <ModalSelect />
-              <ModalSelect />
-            </div>
-          ))}
-        </div>
-      </SectionBox>
-
-      {/* Reflexes */}
-      <SectionBox>
-        <NerveSectionTitle>Reflexes:</NerveSectionTitle>
-        <Checkbox label="Normal" />
-        <div className="grid grid-cols-[50px_repeat(7,1fr)] gap-x-[6px] gap-y-[6px] items-center">
-          <span />
-          {reflexCols.map((c) => (
-            <span key={c} className="text-[11px] font-bold uppercase text-[#358C11] text-center tracking-[0.4px]">{c}</span>
-          ))}
-          <FieldLabel color="#5a6070">Right:</FieldLabel>
-          {reflexCols.map((c) => <ModalSelect key={`r-${c}`} />)}
-          <FieldLabel color="#5a6070">Left:</FieldLabel>
-          {reflexCols.map((c) => <ModalSelect key={`l-${c}`} />)}
-        </div>
-        <div className="mt-[4px]">
-          <Checkbox label="Ankle clonus present" />
-        </div>
-      </SectionBox>
-    </div>
-  );
-}
-
-// ─── Main Neurological Content ───
-function NeurologicalContent() {
-  const [activeSub, setActiveSub] = useState("higher");
-  const subTabs = [
-    { key: "higher", label: "Higher cerebral function" },
-    { key: "cranial", label: "Cranial Nerves" },
-    { key: "motor", label: "Motor function" },
-    { key: "sensory", label: "Sensory function" },
-    { key: "others", label: "Others" },
-  ];
-
-  return (
-    <div className="flex flex-col gap-[12px]">
-      {/* NAD checkbox at top */}
-      <Checkbox label="NAD" />
-
-      {/* Sub-tab bar */}
-      <div className="flex" style={{ borderBottom: "1px solid #e7ebf0" }}>
-        {subTabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setActiveSub(t.key)}
-            className="px-[14px] py-[7px] text-[12px] font-semibold cursor-pointer"
-            style={
-              activeSub === t.key
-                ? { background: "white", color: "#064232", marginBottom: "-1px", border: "none", borderBottom: "2px solid #358C11" }
-                : { background: "transparent", color: "#5a6070", border: "none" }
-            }
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Sub-tab content */}
-      <div className="rounded-[8px] p-[14px]" style={{ border: "1px solid #eaecf0" }}>
-        {activeSub === "higher" && <HigherCerebralFunction />}
-        {activeSub === "cranial" && <CranialNerves2 />}
-        {activeSub === "motor" && <MotorFunction />}
-        {activeSub === "sensory" && <SensoryFunction />}
-        {activeSub === "others" && <NeurologicalOthers />}
-      </div>
-
-      {/* Extra Findings — common at bottom */}
-      <div className="flex flex-col gap-[6px] mt-[4px]">
-        <FieldLabel color="#5a6070">Extra Findings:</FieldLabel>
-        <ModalInput placeholder="Describe extra findings…" />
-      </div>
-    </div>
-  );
-}
-
-// ── Cardiovascular Tab ──────────────────────────────────────
-
-function CardiovascularContent() {
-  const periphPulses = ["Radial", "Brachial", "Carotid", "Femoral", "Popliteal", "Post. tibial", "Dorsalis Pedis"];
-
-  return (
-    <div className="flex flex-col gap-[10px]">
-
-      {/* NAD */}
-      <Checkbox label="NAD" />
-
-      {/* Pulse / JVP / Apex group */}
-      <SectionBox>
-        <div className="grid grid-cols-6 gap-[12px]">
-          <FieldStack label="Pulse (/min)"><ModalInput /></FieldStack>
-          <FieldStack label="Regularity"><ModalSelect /></FieldStack>
-          <FieldStack label="Volume"><ModalSelect /></FieldStack>
-          <FieldStack label="JVP"><ModalSelect /></FieldStack>
-          <FieldStack label="Apex · Site"><ModalSelect /></FieldStack>
-          <FieldStack label="Apex · Character"><ModalSelect /></FieldStack>
-        </div>
-      </SectionBox>
-
-      {/* BP + Thrill */}
-      <SectionBox>
-        <div className="grid grid-cols-3 gap-[12px]">
-          <FieldStack label="BP Supine (mm Hg)">
-            <div className="flex items-center gap-[4px]">
-              <ModalInput />
-              <span className="text-[12px] text-[#5a6070]">/</span>
-              <ModalInput />
-            </div>
-          </FieldStack>
-          <FieldStack label="BP Erect (mm Hg)">
-            <div className="flex items-center gap-[4px]">
-              <ModalInput />
-              <span className="text-[12px] text-[#5a6070]">/</span>
-              <ModalInput />
-            </div>
-          </FieldStack>
-          <FieldStack label="Thrill"><ModalSelect /></FieldStack>
-        </div>
-      </SectionBox>
-
-      {/* Heart sounds */}
-      <SectionBox>
-        <div className="grid grid-cols-6 gap-[12px]">
-          <FieldStack label="S1"><ModalSelect /></FieldStack>
-          <FieldStack label="S2"><ModalSelect /></FieldStack>
-          <FieldStack label="S3"><ModalSelect /></FieldStack>
-          <FieldStack label="S4"><ModalSelect /></FieldStack>
-          <div className="col-span-2">
-            <FieldStack label="Added sound"><ModalSelect /></FieldStack>
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-[12px]">
-          <FieldStack label="Murmur"><ModalSelect /></FieldStack>
-          <FieldStack label="Over"><ModalSelect /></FieldStack>
-          <FieldStack label="Radiation"><ModalInput /></FieldStack>
-        </div>
-      </SectionBox>
-
-      {/* Peripheral pulses matrix */}
-      <SectionBox>
-        <NerveSectionTitle>Peripheral pulses:</NerveSectionTitle>
-        <div className="grid gap-x-[8px] gap-y-[8px] items-center" style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}>
-          <span />
-          {periphPulses.map((p) => (
-            <span key={p} className="text-[12px] font-semibold text-[#5a6070] text-center">{p}</span>
-          ))}
-
-          <FieldLabel color="#5a6070">Right:</FieldLabel>
-          {periphPulses.map((p) => <ModalSelect key={`r-${p}`} />)}
-
-          <FieldLabel color="#5a6070">Left:</FieldLabel>
-          {periphPulses.map((p) => <ModalSelect key={`l-${p}`} />)}
-        </div>
-      </SectionBox>
-
-      {/* Bruit */}
-      <SectionBox>
-        <FieldStack label="Bruit"><ModalInput /></FieldStack>
-      </SectionBox>
-
-      {/* Extra findings */}
-      <SectionBox>
-        <FieldStack label="Extra findings"><ModalInput /></FieldStack>
-      </SectionBox>
-    </div>
-  );
-}
-
-// ── Urogenital Tab ──────────────────────────────────────────
-
-function UrogenitalContent() {
-  const lymphNodeCols = ["Side", "Number", "Size", "Consistency", "Tenderness", "Fixity"];
-
-  return (
-    <div className="flex flex-col gap-[10px]">
-
-      {/* NAD */}
-      <Checkbox label="NAD" />
-
-      {/* Kidney section */}
-      <SectionBox>
-        <div className="grid grid-cols-2 gap-[16px]">
-          <FieldStack label="Visible renal mass"><ModalSelect /></FieldStack>
-          <FieldStack label="Kidney(s) ballotable"><ModalSelect /></FieldStack>
-        </div>
-        <div className="grid grid-cols-2 gap-[16px]">
-          <FieldStack label="Tenderness in costovertebral angle"><ModalSelect /></FieldStack>
-          <FieldStack label="Bruit in costovertebral angle"><ModalSelect /></FieldStack>
-        </div>
-      </SectionBox>
-
-      {/* Urinary bladder */}
-      <SectionBox>
-        <div className="flex items-center gap-[16px]">
-          <FieldLabel color="#5a6070">Urinary bladder:</FieldLabel>
-          <Checkbox label="Visibly distended" />
-          <Checkbox label="Palpably distended" />
-        </div>
-      </SectionBox>
-
-      {/* Inguinal lymph nodes */}
-      <SectionBox>
-        <NerveSectionTitle>Inguinal lymph nodes:</NerveSectionTitle>
-        <div className="grid gap-x-[10px] gap-y-[8px] items-center" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
-          {lymphNodeCols.map((c) => (
-            <span key={c} className="text-[12px] font-semibold text-[#5a6070] text-center">{c}</span>
-          ))}
-          {lymphNodeCols.map((c) => <ModalSelect key={`ln-${c}`} />)}
-        </div>
-      </SectionBox>
-
-      {/* Penis */}
-      <SectionBox>
-        <NerveSectionTitle>Penis:</NerveSectionTitle>
-        <div className="grid grid-cols-4 gap-x-[14px] gap-y-[8px]">
-          <Checkbox label="Ulcer" />
-          <Checkbox label="Bumps" />
-          <Checkbox label="Tumour" />
-          <Checkbox label="Balanitis" />
-          <Checkbox label="Meatal stenosis" />
-          <Checkbox label="Hypospadias" />
-        </div>
-      </SectionBox>
-
-      {/* Scrotum */}
-      <SectionBox>
-        <NerveSectionTitle>Scrotum:</NerveSectionTitle>
-        <div className="grid grid-cols-2 gap-[20px] items-start">
-          <div className="flex flex-col gap-[6px]">
-            <FieldLabel color="#5a6070">Skin lesions:</FieldLabel>
-            <div className="grid grid-cols-2 gap-x-[14px] gap-y-[6px]">
-              <Checkbox label="Sebaceous cysts" />
-              <Checkbox label="Impetigo" />
-              <Checkbox label="Lichen planus" />
-              <Checkbox label="Condylomata acuminata" />
-              <Checkbox label="Psoriasis" />
-            </div>
-          </div>
-          <div className="flex flex-col gap-[10px]">
-            <FieldStack label="Mass"><ModalSelect /></FieldStack>
-            <div className="grid grid-cols-2 gap-x-[14px] gap-y-[6px]">
-              <Checkbox label="Varicocele" />
-              <Checkbox label="Epididymitis" />
-              <Checkbox label="Epididymal fibroma" />
-              <Checkbox label="Spermatocele" />
-            </div>
-          </div>
-        </div>
-      </SectionBox>
-
-      {/* Prostate */}
-      <SectionBox>
-        <FieldStack label="Prostate"><ModalInput /></FieldStack>
-      </SectionBox>
-
-      {/* Extra Findings */}
-      <SectionBox>
-        <FieldStack label="Extra Findings"><ModalInput /></FieldStack>
-      </SectionBox>
-    </div>
-  );
-}
-
-// ── Respiratory Tab ─────────────────────────────────────────
-
-function RespiratoryContent() {
-  return (
-    <div className="flex flex-col gap-[10px]">
-
-      {/* NAD */}
-      <Checkbox label="NAD" />
-
-      {/* Inspection & Palpation */}
-      <SectionBox>
-        <div className="grid grid-cols-3 gap-[12px]">
-          <FieldStack label="Chest wall deformity"><ModalSelect /></FieldStack>
-          <FieldStack label="Trachea"><ModalSelect /></FieldStack>
-          <FieldStack label="Expansion"><ModalSelect /></FieldStack>
-        </div>
-      </SectionBox>
-
-      {/* Percussion & Auscultation */}
-      <SectionBox>
-        <div className="grid grid-cols-5 gap-[12px]">
-          <FieldStack label="Percussion Note"><ModalSelect /></FieldStack>
-          <FieldStack label="Breath sound"><ModalSelect /></FieldStack>
-          <FieldStack label="Rhonchi"><ModalSelect /></FieldStack>
-          <FieldStack label="Crepitations"><ModalSelect /></FieldStack>
-          <FieldStack label="Pleural rub"><ModalSelect /></FieldStack>
-        </div>
-      </SectionBox>
-
-      {/* Vocal resonance + Extra findings */}
-      <SectionBox>
-        <div className="grid grid-cols-3 gap-[12px]">
-          <FieldStack label="Vocal resonance"><ModalSelect /></FieldStack>
-          <div className="col-span-2">
-            <FieldStack label="Extra findings"><ModalInput /></FieldStack>
-          </div>
-        </div>
-      </SectionBox>
-    </div>
-  );
-}
-
-// ── Abdominal Tab ───────────────────────────────────────────
-
-function AbdominalContent() {
-  const massHeaders = ["Site", "Size (cm)", "Consistency", "Margin", "Fixity", "Other"];
-
-  return (
-    <div className="flex flex-col gap-[10px]">
-
-      {/* NAD */}
-      <Checkbox label="NAD" />
-
-      {/* Inspection: Shape / Scars / Hernia */}
-      <SectionBox>
-        <div className="grid grid-cols-2 gap-[24px] items-start">
-          <div className="flex flex-col gap-[10px]">
-            <FieldStack label="Shape"><ModalSelect /></FieldStack>
-            <FieldStack label="Surgical Scars"><ModalSelect /></FieldStack>
-          </div>
-          <div className="flex flex-col gap-[8px]">
-            <NerveSectionTitle>Hernia:</NerveSectionTitle>
-            <div className="grid grid-cols-3 gap-x-[14px] gap-y-[8px]">
-              <Checkbox label="Rt inguinal" />
-              <Checkbox label="Lt inguinal" />
-              <Checkbox label="Paraumbilical" />
-              <Checkbox label="Rt femoral" />
-              <Checkbox label="Lt femoral" />
-              <Checkbox label="Incisional" />
-            </div>
-          </div>
-        </div>
-      </SectionBox>
-
-      {/* Palpation: Tenderness / Guarding / Liver / Spleen */}
-      <SectionBox>
-        <div className="grid grid-cols-4 gap-[12px]">
-          <FieldStack label="Tenderness in"><ModalSelect /></FieldStack>
-          <FieldStack label="Guarding in"><ModalSelect /></FieldStack>
-          <FieldStack label="Liver"><ModalSelect /></FieldStack>
-          <FieldStack label="Spleen"><ModalSelect /></FieldStack>
-        </div>
-      </SectionBox>
-
-      {/* Other Mass(es) */}
-      <SectionBox>
-        <NerveSectionTitle>Other Mass(es):</NerveSectionTitle>
-        <div className="grid gap-x-[10px] gap-y-[8px] items-center" style={{ gridTemplateColumns: "80px repeat(6, 1fr)" }}>
-          <span />
-          {massHeaders.map((h) => (
-            <span key={h} className="text-[12px] font-semibold text-[#5a6070] text-center">{h}</span>
-          ))}
-
-          <FieldLabel color="#5a6070">Mass 1:</FieldLabel>
-          <ModalSelect />
-          <ModalInput />
-          <ModalSelect />
-          <ModalSelect />
-          <ModalSelect />
-          <ModalInput />
-
-          <FieldLabel color="#5a6070">Mass 2:</FieldLabel>
-          <ModalSelect />
-          <ModalInput />
-          <ModalSelect />
-          <ModalSelect />
-          <ModalSelect />
-          <ModalInput />
-        </div>
-      </SectionBox>
-
-      {/* Ascites / Bowel sound / Per rectum */}
-      <SectionBox>
-        <div className="grid grid-cols-4 gap-[12px]">
-          <FieldStack label="Ascites"><ModalSelect /></FieldStack>
-          <FieldStack label="Bowel sound"><ModalSelect /></FieldStack>
-          <div className="col-span-2">
-            <FieldStack label="Per rectum"><ModalInput /></FieldStack>
-          </div>
-        </div>
-      </SectionBox>
-
-      {/* Extra Findings */}
-      <SectionBox>
-        <FieldStack label="Extra Findings"><ModalInput /></FieldStack>
-      </SectionBox>
-    </div>
-  );
-}
-
-// ── Locomotor Tab ───────────────────────────────────────────
-
-const LOCOMOTOR_JOINTS = ["ankle", "big toe", "CMC", "elbow", "foot", "hand", "hip", "knee", "MCP", "MTP", "PIP", "shoulder", "TIP", "TMT", "toe", "wrist"];
-const LOCOMOTOR_JOINTS_PLURAL = ["ankles", "big toes", "CMC", "elbows", "feet", "hands", "hips", "knees", "MCPs", "MTPs", "PIPs", "shoulders", "TIPs", "TMTs", "toes", "wrists"];
-
-const SPINE_TAB_COLORS: Record<string, string> = {
-  cervical: "#fce7f3",
-  thoracic: "#fdebd8",
-  lumbar: "#dff0ef",
-};
-
-function OtherJointsPanel() {
-  return (
-    <div className="flex flex-col gap-[8px]">
-      <div
-        className="rounded-[8px] overflow-hidden"
-        style={{ border: "1px solid #D3D9E4" }}
-      >
-        {/* Header */}
-        <div
-          className="grid"
-          style={{
-            gridTemplateColumns: "1fr 1fr 1fr",
-            borderBottom: "2px solid #D3D9E4",
-          }}
-        >
-          <div className="px-[14px] py-[8px] text-[12px] font-semibold text-[#0F100F] text-center" style={{ background: "#E3E7ED" }}>Right</div>
-          <div className="px-[14px] py-[8px] text-[12px] font-semibold text-[#0F100F] text-center" style={{ background: "#ffffff" }}>Left</div>
-          <div className="px-[14px] py-[8px] text-[12px] font-semibold text-[#0F100F] text-center" style={{ background: "#FAFBFC" }}>Both</div>
-        </div>
-        {/* Body */}
-        <div
-          className="grid"
-          style={{ gridTemplateColumns: "1fr 1fr 1fr" }}
-        >
-          <div className="flex flex-col gap-[5px] px-[14px] py-[10px]" style={{ background: "#E3E7ED" }}>
-            {LOCOMOTOR_JOINTS.map((j) => (
-              <Checkbox key={`r-${j}`} label={j} />
-            ))}
-          </div>
-          <div className="flex flex-col gap-[5px] px-[14px] py-[10px]" style={{ background: "#ffffff" }}>
-            {LOCOMOTOR_JOINTS.map((j) => (
-              <Checkbox key={`l-${j}`} label={j} />
-            ))}
-          </div>
-          <div className="flex flex-col gap-[5px] px-[14px] py-[10px]" style={{ background: "#FAFBFC" }}>
-            {LOCOMOTOR_JOINTS_PLURAL.map((j) => (
-              <Checkbox key={`b-${j}`} label={j} />
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="flex justify-end">
-        <button
-          className="px-[20px] h-[30px] rounded-[6px] text-[13px] font-semibold text-white cursor-pointer"
-          style={{ background: "#358C11", border: "none" }}
-        >
-          Next
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function SpineHighlightBox({ activeSub }: { activeSub: string }) {
-  let firstRow: React.ReactNode;
-  if (activeSub === "cervical") {
-    firstRow = (
-      <>
-        <Checkbox label="Loss of lordosis" />
-        <Checkbox label="Torticollis" />
-        <Checkbox label="Localised tenderness" />
-      </>
-    );
-  } else if (activeSub === "thoracic") {
-    firstRow = (
-      <>
-        <Checkbox label="Kyphosis" />
-        <Checkbox label="Scoliosis" />
-        <Checkbox label="Localised tenderness" />
-      </>
-    );
-  } else {
-    firstRow = (
-      <>
-        <Checkbox label="Loss of lordosis" />
-        <Checkbox label="Scoliosis" />
-        <Checkbox label="Localised tenderness" />
-      </>
-    );
-  }
-
-  return (
-    <div
-      className="rounded-[8px] px-[16px] py-[14px] flex flex-col gap-[12px]"
-      style={{ background: SPINE_TAB_COLORS[activeSub], border: "1px solid rgba(0,0,0,0.06)" }}
-    >
-      {/* Row 1: 3 spine-specific items in 5-col grid */}
-      <div className="grid grid-cols-5 gap-x-[14px] gap-y-[8px]">
-        {firstRow}
-      </div>
-
-      {/* Row 2: Movement restriction title + 5 items */}
-      <div className="flex flex-col gap-[6px]">
-        <span className="text-[12px] italic text-[#5a6070]">Movement restriction:</span>
-        <div className="grid grid-cols-5 gap-x-[14px] gap-y-[8px]">
-          <Checkbox label="Flexion" />
-          <Checkbox label="Extension" />
-          <Checkbox label="Rt lat. bending" />
-          <Checkbox label="Lt lat. bending" />
-          <Checkbox label="All movements" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LocomotorContent() {
-  const [activeSub, setActiveSub] = useState("cervical");
-  const [otherJointsOpen, setOtherJointsOpen] = useState(false);
-
-  const spineTabs = [
-    { key: "cervical", label: "Cervical Spine" },
-    { key: "thoracic", label: "Thoracic Spine" },
-    { key: "lumbar", label: "Lumbar Spine" },
-  ];
-
-  return (
-    <div className="flex flex-col gap-[10px]">
-
-      {/* NAD + Gait row */}
-      <SectionBox>
-        <div className="flex items-center justify-between gap-[16px]">
-          <Checkbox label="NAD" />
-          <div className="flex items-center gap-[14px]">
-            <FieldLabel color="#5a6070">Gait:</FieldLabel>
-            <Checkbox label="Painful (dot-dash)" />
-            <Checkbox label="Pelvic tilt" />
-            <Checkbox label="Bizarre" />
-          </div>
-        </div>
-      </SectionBox>
-
-      {/* Spine sub-tabs + highlighted box + related measurements */}
-      <SectionBox>
-        <div className="flex">
-          {spineTabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setActiveSub(t.key)}
-              className="px-[16px] py-[6px] text-[12px] font-semibold cursor-pointer bg-transparent"
-              style={
-                activeSub === t.key
-                  ? { color: "#064232", border: "none", borderBottom: "2px solid #358C11" }
-                  : { color: "#5a6070", border: "none", borderBottom: "2px solid transparent" }
-              }
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <SpineHighlightBox activeSub={activeSub} />
-
-        <div className="grid grid-cols-5 gap-x-[14px] gap-y-[8px] items-start px-[16px]">
-          <FieldStack label="Right S-I joint">
-            <div className="h-[28px] flex items-center"><Checkbox label="Tender" /></div>
-          </FieldStack>
-          <FieldStack label="Left S-I joint">
-            <div className="h-[28px] flex items-center"><Checkbox label="Tender" /></div>
-          </FieldStack>
-          <FieldStack label="Schober's test (cm)">
-            <ModalInput />
-          </FieldStack>
-          <FieldStack label="SLR Right (°)">
-            <ModalInput />
-          </FieldStack>
-          <FieldStack label="SLR Left (°)">
-            <ModalInput />
-          </FieldStack>
-        </div>
-      </SectionBox>
-
-      {/* Other joints — accordion */}
-      <AccordionSection
-        title="Other Joints"
-        open={otherJointsOpen}
-        onToggle={() => setOtherJointsOpen((v) => !v)}
-      >
-        <OtherJointsPanel />
-      </AccordionSection>
-
-      {/* Extra findings */}
-      <SectionBox>
-        <FieldStack label="Extra findings">
-          <ModalInput />
-        </FieldStack>
-      </SectionBox>
-    </div>
-  );
-}
-
 // ── Add Test Results Modal ──────────────────────────────────
 
-type SubTest = {
+export type SubTest = {
   name: string;
   value: string;
   unit: string;
   range: string;
   abnormal?: boolean;
   abnormalDirection?: "up" | "down";
+};
+
+/** One row in Add Test Results. Shape taken from what the modal already
+ *  builds; `id` is added so rows are addressed by identity, never index. */
+export type TestResultRow = {
+  id: string;
+  name: string;
+  date: string;
+  result: string;
+  unit: string;
+  range: string;
+  abnormal: boolean;
+  abnormalDirection?: "up" | "down";
+  subTests?: SubTest[];
+  expanded?: boolean;
+  selected: boolean;
 };
 
 const TEST_REFERENCE_DATA: Record<string, {
@@ -6588,29 +5239,65 @@ const TEST_REFERENCE_DATA: Record<string, {
   },
 };
 
-function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testList: string[] }) {
-  // Build initial rows: one for each test in testList + one empty row for adding new
-  const [rows, setRows] = useState(() => [
-    ...testList.map((name) => ({
-      name,
-      date: "23 Mar, 2026",
-      result: TEST_REFERENCE_DATA[name]?.value ?? "",
-      unit: TEST_REFERENCE_DATA[name]?.unit ?? "",
-      range: TEST_REFERENCE_DATA[name]?.range ?? "",
-      abnormal: TEST_REFERENCE_DATA[name]?.abnormal ?? false,
-      abnormalDirection: TEST_REFERENCE_DATA[name]?.abnormalDirection as ("up" | "down" | undefined),
-      subTests: TEST_REFERENCE_DATA[name]?.subTests as (SubTest[] | undefined),
-      expanded: TEST_REFERENCE_DATA[name]?.subTests ? false : undefined,
-      selected: false,
-    })),
-    { name: "", date: "23 Mar, 2026", result: "", unit: "", range: "", abnormal: false, abnormalDirection: undefined as "up" | "down" | undefined, subTests: undefined as SubTest[] | undefined, expanded: undefined as boolean | undefined, selected: false },
-  ]);
+function AddTestResultsModal({
+  onClose,
+  testList,
+  results,
+  onChangeResults,
+}: {
+  onClose: () => void;
+  testList: string[];
+  results: TestResultRow[];
+  onChangeResults: (rows: TestResultRow[]) => void;
+}) {
+  // Rows live on the draft. Any ordered test with no stored row yet is seeded
+  // from the reference data, and a trailing blank row is always offered.
+  const rows: TestResultRow[] = useMemo(() => {
+    const byName = new Map(results.map((r) => [r.name, r]));
+    const seeded = testList.map(
+      (name) =>
+        byName.get(name) ?? {
+          id: `tr-${name}`,
+          name,
+          date: "23 Mar, 2026",
+          result: TEST_REFERENCE_DATA[name]?.value ?? "",
+          unit: TEST_REFERENCE_DATA[name]?.unit ?? "",
+          range: TEST_REFERENCE_DATA[name]?.range ?? "",
+          abnormal: TEST_REFERENCE_DATA[name]?.abnormal ?? false,
+          abnormalDirection: TEST_REFERENCE_DATA[name]?.abnormalDirection as ("up" | "down" | undefined),
+          subTests: TEST_REFERENCE_DATA[name]?.subTests as (SubTest[] | undefined),
+          expanded: TEST_REFERENCE_DATA[name]?.subTests ? false : undefined,
+          selected: false,
+        },
+    );
+    // Free-text rows the doctor added that are not in the ordered list.
+    const extra = results.filter((r) => !testList.includes(r.name));
+    const blank = [...seeded, ...extra].some((r) => r.name.trim() === "")
+      ? []
+      : [{
+          id: `tr-blank-${seeded.length + extra.length}`,
+          name: "", date: "23 Mar, 2026", result: "", unit: "", range: "",
+          abnormal: false,
+          abnormalDirection: undefined as "up" | "down" | undefined,
+          subTests: undefined as SubTest[] | undefined,
+          expanded: undefined as boolean | undefined,
+          selected: false,
+        }];
+    return [...seeded, ...extra, ...blank];
+  }, [results, testList]);
 
-  const toggleExpanded = (idx: number) => setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, expanded: !r.expanded } : r)));
+  // Every mutation writes the whole row set back through the draft, addressing
+  // rows by id.
+  const setRows = (fn: (prev: TestResultRow[]) => TestResultRow[]) =>
+    onChangeResults(fn(rows).filter((r) => r.name.trim() !== ""));
+  const patchRow = (id: string, patch: Partial<TestResultRow>) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  const toggleExpanded = (id: string) => patchRow(id, { expanded: !rows.find((r) => r.id === id)?.expanded });
   const [allSelected, setAllSelected] = useState(false);
 
-  const removeRow = (idx: number) => setRows((prev) => prev.filter((_, i) => i !== idx));
-  const toggleRow = (idx: number) => setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, selected: !r.selected } : r)));
+  const removeRow = (id: string) => setRows((prev) => prev.filter((r) => r.id !== id));
+  const toggleRow = (id: string) => patchRow(id, { selected: !rows.find((r) => r.id === id)?.selected });
   const toggleAll = () => {
     const next = !allSelected;
     setAllSelected(next);
@@ -6687,7 +5374,7 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                   >
                     {/* Checkbox */}
                     <label className="flex items-center cursor-pointer">
-                      <input type="checkbox" checked={row.selected} onChange={() => toggleRow(i)} className="hidden" />
+                      <input type="checkbox" checked={row.selected} onChange={() => toggleRow(row.id)} className="hidden" />
                       <span
                         className="w-[14px] h-[14px] rounded-[3px] flex items-center justify-center"
                         style={{
@@ -6725,7 +5412,7 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                         {/* Test Name */}
                         <div className="flex items-center gap-[8px] h-[40px] px-[12px] rounded-[6px]">
                           <button
-                            onClick={() => toggleExpanded(i)}
+                            onClick={() => toggleExpanded(row.id)}
                             className="flex items-center justify-center cursor-pointer shrink-0"
                             style={{ width: 18, height: 18, background: "transparent", border: "none", padding: 0 }}
                           >
@@ -6740,7 +5427,8 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                           </button>
                           <input
                             type="text"
-                            defaultValue={row.name}
+                            value={row.name}
+                            onChange={(e) => patchRow(row.id, { name: e.target.value })}
                             placeholder="Search and add test"
                             className="flex-1 text-[13px] text-[#0F100F] outline-none bg-transparent border-0 min-w-0"
                             style={{ fontWeight: 600 }}
@@ -6751,7 +5439,8 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                         <div className="flex items-center gap-[6px] h-[40px] px-[12px] rounded-[6px]">
                           <input
                             type="text"
-                            defaultValue={row.date}
+                            value={row.date}
+                            onChange={(e) => patchRow(row.id, { date: e.target.value })}
                             className="flex-1 text-[13px] text-[#0F100F] outline-none bg-transparent border-0 min-w-0"
                           />
                           <Calendar size={13} className="text-[#9198a5] shrink-0" />
@@ -6813,7 +5502,7 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                     >
                       {hasSubTests && (
                         <button
-                          onClick={() => toggleExpanded(i)}
+                          onClick={() => toggleExpanded(row.id)}
                           className="flex items-center justify-center cursor-pointer shrink-0"
                           style={{ width: 18, height: 18, background: "transparent", border: "none", padding: 0 }}
                         >
@@ -6829,7 +5518,8 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                       )}
                       <input
                         type="text"
-                        defaultValue={row.name}
+                        value={row.name}
+                        onChange={(e) => patchRow(row.id, { name: e.target.value })}
                         placeholder="Search and add test"
                         className="flex-1 text-[13px] text-[#0F100F] outline-none bg-transparent border-0 min-w-0"
                         style={{ fontWeight: 400 }}
@@ -6846,7 +5536,8 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                     >
                       <input
                         type="text"
-                        defaultValue={row.date}
+                        value={row.date}
+                        onChange={(e) => patchRow(row.id, { date: e.target.value })}
                         className="flex-1 text-[13px] text-[#0F100F] outline-none bg-transparent border-0 min-w-0"
                       />
                       <Calendar size={13} className="text-[#9198a5] shrink-0" />
@@ -6917,7 +5608,8 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                           )}
                           <input
                             type="text"
-                            defaultValue={row.result}
+                            value={row.result}
+                            onChange={(e) => patchRow(row.id, { result: e.target.value })}
                             placeholder="Value"
                             className="text-[13px] outline-none bg-transparent border-0 min-w-0"
                             style={{
@@ -6941,7 +5633,8 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                         >
                           <input
                             type="text"
-                            defaultValue={row.range}
+                            value={row.range}
+                            onChange={(e) => patchRow(row.id, { range: e.target.value })}
                             placeholder="Value"
                             className="flex-1 text-[13px] text-[#0F100F] outline-none bg-transparent border-0 min-w-0"
                           />
@@ -6956,7 +5649,7 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                       <span />
                     ) : (
                       <button
-                        onClick={() => removeRow(i)}
+                        onClick={() => removeRow(row.id)}
                         className="flex items-center justify-center w-[28px] h-[28px] rounded-[6px] cursor-pointer"
                         style={{ background: "transparent", border: "none", color: "#dc2626" }}
                       >
@@ -6991,7 +5684,14 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                       >
                         <input
                           type="text"
-                          defaultValue={sub.name}
+                          value={sub.name}
+                          onChange={(e) =>
+                            patchRow(row.id, {
+                              subTests: (row.subTests ?? []).map((st) =>
+                                st.name === sub.name ? { ...st, name: e.target.value } : st,
+                              ),
+                            })
+                          }
                           className="flex-1 text-[13px] text-[#0F100F] outline-none bg-transparent border-0 min-w-0"
                           style={{ fontWeight: 400 }}
                         />
@@ -7021,7 +5721,14 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
                         )}
                         <input
                           type="text"
-                          defaultValue={sub.value}
+                          value={sub.value}
+                          onChange={(e) =>
+                            patchRow(row.id, {
+                              subTests: (row.subTests ?? []).map((st) =>
+                                st.name === sub.name ? { ...st, value: e.target.value } : st,
+                              ),
+                            })
+                          }
                           className="text-[13px] outline-none bg-transparent border-0 min-w-0"
                           style={{
                             width: 50,
@@ -7080,306 +5787,6 @@ function AddTestResultsModal({ onClose, testList }: { onClose: () => void; testL
   );
 }
 
-function ClinicalSignsModal({ onClose }: { onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState("General");
-  const tabs = ["General", "Cardiovascular", "Respiratory", "Abdominal", "Neurological", "Locomotor", "Urogenital"];
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set(["vitals"]));
-  const isOpen = (key: string) => openSections.has(key);
-  const toggle = (key: string) => setOpenSections((prev) => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    return next;
-  });
-
-  return (
-    <div data-module="clinical-signs" className="fixed inset-0 z-50 flex items-center justify-center font-[DM_Sans]" style={{ background: "rgba(0,0,0,0.45)" }}>
-      <div className="w-[1078px] bg-white rounded-[12px] flex flex-col overflow-hidden shadow-2xl" style={{ height: "748px" }}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-[20px] py-[10px] border-0 shrink-0" style={{ background: "#358C11" }}>
-          <span className="text-[15px] font-semibold text-white">Clinical Signs</span>
-          <button onClick={onClose} className="flex items-center justify-center w-[28px] h-[28px] rounded-[6px] text-white" style={{ background: "rgba(255,255,255,0.15)" }}>
-            <X size={15} />
-          </button>
-        </div>
-
-        {/* Tab Bar */}
-        <div className="flex shrink-0 border-b" style={{ background: "#ffffff", borderColor: "#e7ebf0" }}>
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="px-[16px] py-[9px] text-[13px] font-medium transition-colors cursor-pointer"
-              style={
-                activeTab === tab
-                  ? { background: "white", color: "#064232", borderBottom: "2px solid #358C11", marginBottom: "-1px" }
-                  : { background: "transparent", color: "#5a6070" }
-              }
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* Body */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
-
-          {/* Left: Form */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-[16px] flex flex-col gap-[8px]">
-
-            {activeTab === "Neurological" && <NeurologicalContent />}
-
-            {activeTab === "Locomotor" && <LocomotorContent />}
-
-            {activeTab === "Abdominal" && <AbdominalContent />}
-
-            {activeTab === "Cardiovascular" && <CardiovascularContent />}
-
-            {activeTab === "Respiratory" && <RespiratoryContent />}
-
-            {activeTab === "Urogenital" && <UrogenitalContent />}
-
-            {activeTab !== "General" && activeTab !== "Neurological" && activeTab !== "Locomotor" && activeTab !== "Abdominal" && activeTab !== "Cardiovascular" && activeTab !== "Respiratory" && activeTab !== "Urogenital" && (
-              <div className="flex items-center justify-center text-[13px] text-[#8c9198] py-[40px]">
-                {activeTab} content coming soon
-              </div>
-            )}
-
-            {activeTab === "General" && <>
-            {/* Vitals */}
-            <AccordionSection title="Vitals" open={isOpen("vitals")} onToggle={() => toggle("vitals")}>
-              <div className="grid grid-cols-6 gap-x-[12px] gap-y-[10px]">
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">Pulse (/min)</span>
-                  <ModalInput value="70" />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">Regularity</span>
-                  <ModalSelect placeholder="regular" />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">Volume</span>
-                  <ModalSelect placeholder="normal" />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">Body Wt (kg)</span>
-                  <ModalInput value="80" />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">Height (cm)</span>
-                  <ModalInput value="155.5" />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">Height (in)</span>
-                  <ModalInput value="61.2" />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">BP Supine (sys)</span>
-                  <ModalInput />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">BP Supine (dia)</span>
-                  <ModalInput />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">BP Erect (sys)</span>
-                  <ModalInput value="120" />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">BP Erect (dia)</span>
-                  <ModalInput value="80" />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">Temp (°F)</span>
-                  <ModalInput />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] invisible">·</span>
-                  <div className="h-[28px] flex items-center">
-                    <Checkbox label="Temp raised" />
-                  </div>
-                </div>
-              </div>
-            </AccordionSection>
-
-            {/* General Condition */}
-            <AccordionSection title="General Condition" open={isOpen("general")} onToggle={() => toggle("general")}>
-              <div className="grid grid-cols-3 gap-[8px]">
-                {[
-                  "Appearance", "Nutrition", "Jaundice",
-                  "Mental State", "Anaemia", "Dehydration",
-                  "Consciousness", "Cyanosis", "Oedema",
-                ].map((label) => (
-                  <div key={label} className="flex flex-col gap-[4px]">
-                    <span className="text-[12px] font-medium text-[#5a6070]">{label}</span>
-                    <ModalSelect />
-                  </div>
-                ))}
-              </div>
-            </AccordionSection>
-
-            {/* Mouth */}
-            <AccordionSection title="Mouth" open={isOpen("mouth")} onToggle={() => toggle("mouth")}>
-              <div className="grid grid-rows-2 grid-flow-col gap-x-[20px] gap-y-[6px]">
-                <Checkbox label="Angular stomatitis" />
-                <Checkbox label="Aphthous ulcers" />
-                <Checkbox label="Gingivitis" />
-                <Checkbox label="Atrophic glossitis" />
-                <Checkbox label="Dental caries" />
-                <Checkbox label="Coated tongue" />
-                <Checkbox label="Oral thrush" />
-                <Checkbox label="Tonsillar Membrane" checked />
-                <Checkbox label="Oral pigmentation" checked />
-              </div>
-            </AccordionSection>
-
-            {/* Skin Lesion & Thyroid Gland */}
-            <AccordionSection title="Skin Lesion & Thyroid Gland" open={isOpen("skinThyroid")} onToggle={() => toggle("skinThyroid")}>
-              <div className="flex gap-[24px] items-start">
-                <div className="flex flex-col gap-[8px] flex-1">
-                  <div className="grid grid-cols-3 gap-x-[12px] gap-y-[10px]">
-                    <div className="flex flex-col gap-[4px]">
-                      <span className="text-[12px] font-medium text-[#5a6070]">Rash</span>
-                      <ModalSelect placeholder="maculopapular" />
-                    </div>
-                    <div className="flex flex-col gap-[4px]">
-                      <span className="text-[12px] font-medium text-[#5a6070]">over</span>
-                      <ModalSelect />
-                    </div>
-                    <div className="flex flex-col gap-[4px]">
-                      <span className="text-[12px] invisible">·</span>
-                      <div className="h-[28px] flex items-center">
-                        <Checkbox label="Acne vulgaris" />
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-[4px]">
-                      <span className="text-[12px] font-medium text-[#5a6070]">Boils over</span>
-                      <ModalSelect placeholder="face" />
-                    </div>
-                    <div className="flex flex-col gap-[4px]">
-                      <span className="text-[12px] font-medium text-[#5a6070]">Eczema over</span>
-                      <ModalSelect />
-                    </div>
-                    <div className="flex flex-col gap-[4px]">
-                      <span className="text-[12px] font-medium text-[#5a6070]">Other</span>
-                      <ModalInput />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-[8px] w-[160px] shrink-0" style={{ borderLeft: "1px solid #e7ebf0", paddingLeft: 16 }}>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#064232]">Thyroid Gland</span>
-                  <ModalSelect />
-                  <ModalSelect />
-                  <div className="grid grid-cols-2 gap-x-[10px] gap-y-[6px]">
-                    <Checkbox label="Hard" />
-                    <Checkbox label="Tender" />
-                    <Checkbox label="Bruit" checked />
-                  </div>
-                </div>
-              </div>
-            </AccordionSection>
-
-            {/* Hands */}
-            <AccordionSection title="Hands" open={isOpen("hands")} onToggle={() => toggle("hands")}>
-              <div className="grid grid-cols-4 gap-x-[16px] gap-y-[6px]">
-                <Checkbox label="Small muscles wasted" />
-                <Checkbox label="Kollonychia" />
-                <Checkbox label="Fine tremor" />
-                <Checkbox label="Fingers clubbed" />
-                <Checkbox label="Leuconychia" />
-                <Checkbox label="Flapping tremor" />
-                <Checkbox label="Palmar erythaema" />
-                <Checkbox label="Paronychia" />
-              </div>
-            </AccordionSection>
-
-            {/* Lymph Nodes */}
-            <AccordionSection title="Lymph Nodes" open={isOpen("lymph")} onToggle={() => toggle("lymph")}>
-              <div className="flex flex-col gap-[8px]">
-                <Checkbox label="None" />
-                <div className="rounded-[8px] overflow-hidden" style={{ border: "1px solid #e7ebf0" }}>
-                  <div className="grid grid-cols-7 bg-white" style={{ borderBottom: "1px solid #e7ebf0" }}>
-                    {["Region", "Side", "Number", "Size", "Consistency", "Tenderness", "Fixity"].map((h) => (
-                      <div key={h} className="px-[8px] py-[6px] text-[11px] font-bold uppercase text-[#064232] tracking-[0.4px]">{h}</div>
-                    ))}
-                  </div>
-                  {[0, 1, 2].map((row) => (
-                    <div key={row} className={`grid grid-cols-7 gap-[4px] p-[6px] ${row < 2 ? "border-b" : ""}`} style={row < 2 ? { borderColor: "#e7ebf0" } : {}}>
-                      {["Region", "Side", "Number", "Size", "Consistency", "Tenderness", "Fixity"].map((col) => (
-                        <ModalSelect key={col} />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </AccordionSection>
-
-            {/* Other Signs */}
-            <AccordionSection title="Other Signs" open={isOpen("other")} onToggle={() => toggle("other")}>
-              <div className="grid grid-cols-2 gap-x-[12px] gap-y-[10px]">
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">Signs of hypoandrogenism</span>
-                  <ModalSelect />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">Remark</span>
-                  <ModalInput />
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] invisible">·</span>
-                  <div className="h-[28px] flex items-center">
-                    <Checkbox label="Gynaecomastia" checked />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[12px] font-medium text-[#5a6070]">Hair distribution</span>
-                  <ModalInput />
-                </div>
-              </div>
-            </AccordionSection>
-
-            {/* Extra Findings */}
-            <AccordionSection title="Extra Findings" open={isOpen("extra")} onToggle={() => toggle("extra")}>
-              <ModalInput placeholder="Describe extra findings…" />
-            </AccordionSection>
-            </>}
-
-          </div>
-
-          {/* Right: Summary */}
-          <div className="w-[260px] shrink-0 flex flex-col" style={{ borderLeft: "1px solid #e7ebf0" }}>
-            <div className="flex-1 flex flex-col p-[14px] gap-[12px]">
-              <div className="flex flex-col gap-[6px] flex-1">
-                <span className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#064232]">Physical Signs</span>
-                <div className="flex-1 rounded-[8px] p-[10px] text-[13px] text-[#0F100F] leading-[1.6]" style={{ background: "#ffffff", border: "1px solid #e7ebf0", minHeight: "140px" }}>
-                  General examination: Looks breathless; depressed; average nutrition; Jaundice moderate; Temp. raised; Oral pigmentation; Tonsillar Membrane; Boils over face; Bruit present; Gynaecomastia present
-                </div>
-              </div>
-              <div className="flex flex-col gap-[6px]" style={{ flex: "0 0 140px" }}>
-                <span className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#064232]">Extra Signs</span>
-                <div className="rounded-[8px] p-[10px] h-full" style={{ background: "#ffffff", border: "1px solid #e7ebf0", height: "120px" }}>
-                  <span className="text-[13px] text-[#8c9198]">Additional observations…</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-[8px] px-[20px] py-[12px] shrink-0" style={{ borderTop: "1px solid #e7ebf0" }}>
-          <button onClick={onClose} className="flex items-center px-[16px] h-[34px] rounded-[7px] text-[14px] font-medium text-[#5a6070]" style={{ border: "1px solid #e7ebf0", background: "white" }}>
-            Cancel
-          </button>
-          <button onClick={onClose} className="flex items-center px-[20px] h-[34px] rounded-[7px] text-[14px] font-medium text-white" style={{ background: "#358C11" }}>
-            Done
-          </button>
-        </div>
-
-      </div>
-    </div>
-  );
-}
 
 // ── Manage Advice Modal ────────────────────────────────────
 
@@ -15621,7 +14028,6 @@ export default function PrescriptionApp({ token }: { token: string }) {
   const savedDrugHistory = draft?.drugHistory ?? EMPTY_ROWS;
   const setSavedDrugHistory = (v: SutListRow[] | ((p: SutListRow[]) => SutListRow[])) =>
     updateDraft({ drugHistory: typeof v === "function" ? v(draft?.drugHistory ?? []) : v });
-  const [showClinicalSigns, setShowClinicalSigns] = useState(false);
   // Chief Complaints is split into 3 tabs (Present Complaints / History /
   // Summary) that live in the section header instead of stacking vertically.
   const [chiefTab, setChiefTab] = useState<"complaints" | "history" | "summary">("complaints");
@@ -16528,14 +14934,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
 
             {/* Physical Findings — bottom 3/8 of left column. */}
             <div data-module="vitals" className="flex flex-col min-w-0 border-t border-r border-[#c2c2c2]" style={{ gridColumn: 1, gridRow: 2 }}>
-              <SectionHeader
-                title="Physical Findings"
-                actions={
-                  <HeaderIconButton label="Clinical signs" onClick={() => setShowClinicalSigns(true)}>
-                    <Stethoscope size={14} />
-                  </HeaderIconButton>
-                }
-              />
+              <SectionHeader title="Physical Findings" />
 
               <div className="flex-1 p-[6px] flex flex-col gap-[6px]">
                 {/* Vitals — 7 items on a 4-column grid (2 rows). Row 1: Wt Ht T P,
@@ -16839,7 +15238,6 @@ export default function PrescriptionApp({ token }: { token: string }) {
         </div>
 
         {/* ═══ CLINICAL SIGNS MODAL ═══ */}
-        {showClinicalSigns && <ClinicalSignsModal onClose={() => setShowClinicalSigns(false)} />}
         {showIntakeV2 && (
           <IntakeV2Modal
             onClose={() => setShowIntakeV2(false)}
@@ -16856,7 +15254,12 @@ export default function PrescriptionApp({ token }: { token: string }) {
             }}
           />
         )}
-        {showTestResults && <AddTestResultsModal onClose={() => setShowTestResults(false)} testList={savedTests.map((t) => t.text)} />}
+        {showTestResults && <AddTestResultsModal
+            onClose={() => setShowTestResults(false)}
+            testList={savedTests.map((t) => t.text)}
+            results={draft?.testResults ?? EMPTY_TEST_RESULTS}
+            onChangeResults={(rows) => updateDraft({ testResults: rows })}
+          />}
         {showManageAdvice && (
           <ManageAdviceModal
             onClose={() => setShowManageAdvice(false)}
