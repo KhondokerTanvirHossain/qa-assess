@@ -150,7 +150,9 @@ export function SutProvider({
     // A completed prescription is permanently read-only (DR-009). The CSS lock
     // stops a user reaching the fields; this stops anything else — the state
     // layer is the authority, not the styling.
-    if (draftRef.current?.status === "completed") return;
+    // Vitals may still be corrected after completion.
+    const vitalsOnly = Object.keys(patch).length > 0 && Object.keys(patch).every((k) => k === "vitals");
+    if (draftRef.current?.status === "completed" && !vitalsOnly) return;
     setDraft((prev) => (prev === null ? prev : { ...prev, ...patch }));
     setIsDirty(true);
   }, []);

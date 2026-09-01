@@ -14950,7 +14950,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
             </div>
 
             {/* Physical Findings — bottom 3/8 of left column. */}
-            <div data-module="vitals" className="flex flex-col min-w-0 border-t border-r border-[#c2c2c2]" style={{ gridColumn: 1, gridRow: 2 }}>
+            <div data-module="vitals" className="flex flex-col min-w-0 border-t border-r border-[#c2c2c2]" style={{ gridColumn: 1, gridRow: 2, pointerEvents: "auto", opacity: 1 }}>
               <SectionHeader title="Physical Findings" />
 
               <div className="flex-1 p-[6px] flex flex-col gap-[6px]">
