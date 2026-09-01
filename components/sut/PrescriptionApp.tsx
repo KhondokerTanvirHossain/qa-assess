@@ -14212,12 +14212,7 @@ export default function PrescriptionApp({ token }: { token: string }) {
   const filteredPatients = useMemo(() => {
     const q = demoSearch.trim().toLowerCase();
     if (q.length === 0) return [] as PatientPick[];
-    return sutState.patients.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.code.toLowerCase().includes(q) ||
-        p.phone.includes(q),
-    );
+    return sutState.patients.filter((p) => p.phone === q);
   }, [demoSearch, sutState.patients]);
   // Reset highlight whenever the result list changes or the panel reopens.
   useEffect(() => { setDemoHighlight(0); }, [demoSearch, demoSearchOpen]);
