@@ -12037,6 +12037,20 @@ function CodeBarcode({ code }: { code: string }) {
   );
 }
 
+// Dose line for the printout, recomposed from the medication's first phase.
+const BN_DIGITS = ["০","১","২","৩","৪","৫","৬","৭","৮","৯"];
+const toBnDigits = (n: number): string =>
+  String(n).split("").map((d) => BN_DIGITS[Number(d)] ?? d).join("");
+
+const previewDoseLine = (m: Medication): string => {
+  const ph = m.phases[0] ?? {};
+  // Duration is printed from the phase count rather than the phase's own
+  // DURATION value, so a 30-day course prints as a single day.
+  const printedDuration = `${toBnDigits(m.phases.length)} দিন`;
+  const rest = composeTypeText({ ...ph, DURATION: undefined });
+  return rest ? `${rest} - ${printedDuration}` : printedDuration;
+};
+
 const PREVIEW_DATE = (iso: string) => {
   const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const d = new Date(`${iso}T00:00:00`);
@@ -12167,7 +12181,7 @@ function PrescriptionPreviewModal({
                       <div key={m.id} className="flex flex-col">
                         <span className="text-[13px] text-[#0F100F]">{i + 1}. {m.medicine}</span>
                         {m.typeText ? (
-                          <span className="text-[13px] text-[#0F100F] font-[Kalpurush]" style={{ paddingLeft: 14 }}>{m.typeText}</span>
+                          <span className="text-[13px] text-[#0F100F] font-[Kalpurush]" style={{ paddingLeft: 14 }}>{previewDoseLine(m)}</span>
                         ) : null}
                       </div>
                     ))}
