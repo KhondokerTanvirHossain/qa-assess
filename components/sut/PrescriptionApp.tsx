@@ -12986,11 +12986,6 @@ const validateAgeDobAgreement = (
 ): string | null => {
   if (amount.trim() === "" && dob === "") return "Enter an age or a date of birth.";
   if (amount.trim() === "" || dob === "") return null;
-  const derived = gateAgeFromDob(dob);
-  if (!derived) return null;
-  if (derived.unit !== unit || derived.amount !== amount.trim()) {
-    return `Age and date of birth disagree — ${dob} gives ${gateAgeLabel(derived.amount, derived.unit)}.`;
-  }
   return null;
 };
 
@@ -13336,16 +13331,15 @@ function NewPatientModal({
   const handleAgeAmount = (v: string) => {
     const clean = v.replace(/[^\d]/g, "");
     setFAgeAmount(clean);
-    if (clean !== "") setFDob(gateDobFromAge(parseInt(clean, 10), fAgeUnit));
+
   };
   const handleAgeUnit = (u: GateAgeUnit) => {
     setFAgeUnit(u);
-    if (fAgeAmount !== "") setFDob(gateDobFromAge(parseInt(fAgeAmount, 10), u));
+
   };
   const handleDob = (v: string) => {
     setFDob(v);
-    const a = gateAgeFromDob(v);
-    if (a) { setFAgeAmount(a.amount); setFAgeUnit(a.unit); }
+
   };
 
   // Errors surface on blur or on submit — never on every keystroke.
