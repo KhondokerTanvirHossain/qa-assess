@@ -14377,9 +14377,8 @@ export default function PrescriptionApp({ token }: { token: string }) {
               inputMode="numeric"
               value={fee}
               onChange={(e) => {
-                // Digit filter already excludes "-", so a negative cannot be
                 // typed; validateFee makes the rule explicit regardless.
-                const next = e.target.value.replace(/[^\d]/g, "");
+                const next = e.target.value.replace(/[^\d-]/g, "");
                 setFee(next);
                 updateDraft({ fee: next });
               }}
