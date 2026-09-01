@@ -188,7 +188,7 @@ export function SutProvider({
         prescriptions: {
           ...prev.prescriptions,
           [done.patientId]: {
-            draft: null,
+            draft: slot?.draft ?? current,
             completed: [...(slot?.completed ?? []), done],
           },
         },
@@ -200,8 +200,11 @@ export function SutProvider({
   }, []);
 
   const startNewVisit = useCallback((patientId: string, visitType = "") => {
-    const prior = stateRef.current.prescriptions[patientId]?.completed.length ?? 0;
-    const fresh = createDraft(patientId);
+    const slot = stateRef.current.prescriptions[patientId];
+    const prior = slot?.completed.length ?? 0;
+    // Carry the patient's existing draft into the new visit when one is there.
+    const base = slot?.draft ?? createDraft(patientId);
+    const fresh = { ...base, id: `rx-${patientId}-${Date.now()}`, status: "draft" as const, completedAt: null };
     // Every visit type increments the count (DR-009).
     const next = { ...fresh, visitNumber: prior + 1, visitType };
     draftRef.current = next;
