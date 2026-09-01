@@ -115,6 +115,14 @@ declaring a task done.
 Planted bugs go in as ordinary code, one commit per bug, tagged with its ID
 (`BUG-07`). No feature flags, no toggle objects. `git revert` is the mechanism.
 
+### 7. Verify the surface before writing a bug key entry
+
+Before writing or editing an entry in `lib/bugKey.ts`, confirm the surface it
+depends on exists — grep for the control the `repro` requires. Three bugs have
+been specified against features the SUT does not have (DR-029, DR-031).
+
+A bug nobody can reach silently deflates every candidate's detection score.
+
 ---
 
 ## Conventions
