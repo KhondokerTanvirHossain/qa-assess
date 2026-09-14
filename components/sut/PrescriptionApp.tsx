@@ -766,6 +766,19 @@ const V2_INSTRUCTION_BY_FORM: Partial<Record<V2MedicineForm, V2OptionItem[]>> = 
 // defaults — used to seed the type-mode input when a medicine is picked or
 // pre-filled. Reads like a doctor's handwritten line:
 //   "১ ট্যাব করে ১+০+১ - খাবারের পরে - ৫ দিন"
+// The printable dose line for a medication. A medicine dosed through the
+// structured phase dropdowns has no `typeText` — that field is only filled
+// when the doctor types a dose freehand, or from a catalogue entry's
+// defaults at pick time. Both modes must print, so fall back to composing
+// the phases. A taper prints one segment per phase.
+function doseLineFor(m: { typeText: string; phases: Array<Partial<Record<V2FieldType, string>>> }): string {
+  if (m.typeText.trim() !== "") return m.typeText;
+  return m.phases
+    .map((phase) => composeTypeText(phase))
+    .filter((s) => s.trim() !== "")
+    .join(", ");
+}
+
 function composeTypeText(defaults: Partial<Record<V2FieldType, string>>): string {
   const parts: string[] = [];
   const amount =
@@ -1746,9 +1759,11 @@ function SimpleAddRow({
 function ChiefComplaintAddRows({
   library = CHIEF_COMPLAINT_LIBRARY,
   placeholder = "Add present Complaint",
+  onAdd,
 }: {
   library?: string[];
   placeholder?: string;
+  onAdd: (text: string, remark: string) => void;
 }) {
   // Use stable IDs so deleting a row in the middle doesn't unmount sibling
   // rows and lose their state.
@@ -1794,8 +1809,10 @@ function ChiefComplaintAddRows({
           library={library}
           placeholder={placeholder}
           isLastRow={i === rowIds.length - 1}
-          onPicked={() => {
-            // Append a new empty row only when the user picks in the bottom row
+          onPicked={(text, remark) => {
+            // Commit the row to the draft, then append a new empty row only
+            // when the user picks in the bottom row.
+            onAdd(text, remark);
             if (i === rowIds.length - 1) {
               setRowIds((prev) => [...prev, `row-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`]);
             }
@@ -2070,7 +2087,7 @@ function ChiefComplaintInputRow({
   library: string[];
   placeholder: string;
   isLastRow: boolean;
-  onPicked: () => void;
+  onPicked: (text: string, remark: string) => void;
   registerComplaintRef: (el: HTMLInputElement | HTMLTextAreaElement | null) => void;
   onDelete: () => void;
 }) {
@@ -2166,7 +2183,7 @@ function ChiefComplaintInputRow({
     setCommitted(true);
     // Filling this row appends a new empty one below (if it was the last).
     // Details (Duration / Onset / Progression) are added by expanding the row.
-    onPicked();
+    onPicked(text, remarks);
   };
 
   const onComplaintKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -2189,7 +2206,7 @@ function ChiefComplaintInputRow({
         // Free-text fallback: accept what the user typed and commit the row.
         setOpen(false);
         setCommitted(true);
-        onPicked();
+        onPicked(complaint.trim(), remarks);
       }
     } else if (e.key === "Escape") {
       setOpen(false);
@@ -12159,8 +12176,8 @@ function PrescriptionPreviewModal({
                     {rx.medications.map((m, i) => (
                       <div key={m.id} className="flex flex-col">
                         <span className="text-[13px] text-[#0F100F]">{i + 1}. {m.medicine}</span>
-                        {m.typeText ? (
-                          <span className="text-[13px] text-[#0F100F] font-[Kalpurush]" style={{ paddingLeft: 14 }}>{m.typeText}</span>
+                        {doseLineFor(m) ? (
+                          <span className="text-[13px] text-[#0F100F] font-[Kalpurush]" style={{ paddingLeft: 14 }}>{doseLineFor(m)}</span>
                         ) : null}
                       </div>
                     ))}
@@ -14838,18 +14855,29 @@ export default function PrescriptionApp({ token }: { token: string }) {
                   <div data-module="complaints" className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
                     {savedComplaints.map((c, i) => (
                       <ListRow key={c.id} serial={i + 1}>
-                        <span className="text-[14px] text-[#0F100F] flex-1 min-w-0 truncate">{c.text}</span>
+                        <input
+                          value={c.text}
+                          onChange={(e) =>
+                            setSavedComplaints((p) =>
+                              p.map((r) => (r.id === c.id ? { ...r, text: e.target.value } : r)),
+                            )
+                          }
+                          className="text-[14px] text-[#0F100F] flex-1 min-w-0 truncate outline-none bg-transparent"
+                        />
                         <div className="flex items-center gap-[6px] flex-1 min-w-0">
                           <div className="flex-1 min-w-0">
-                            {c.remark ? (
-                              <div className="bg-white rounded-full px-[14px] h-[26px] flex items-center">
-                                <span className="text-[13px] text-[#0F100F] truncate">{c.remark}</span>
-                              </div>
-                            ) : (
-                              <div className="bg-white rounded-full px-[14px] h-[26px] flex items-center">
-                                <span className="text-[13px] font-light text-[#0F100F]">History of present illness</span>
-                              </div>
-                            )}
+                            <div className="bg-white rounded-full px-[14px] h-[26px] flex items-center">
+                              <input
+                                value={c.remark}
+                                onChange={(e) =>
+                                  setSavedComplaints((p) =>
+                                    p.map((r) => (r.id === c.id ? { ...r, remark: e.target.value } : r)),
+                                  )
+                                }
+                                placeholder="History of present illness"
+                                className={`text-[13px] text-[#0F100F] truncate w-full outline-none bg-transparent ${c.remark ? "" : "font-light"}`}
+                              />
+                            </div>
                           </div>
                           <X
                             size={13}
@@ -14859,7 +14887,12 @@ export default function PrescriptionApp({ token }: { token: string }) {
                         </div>
                       </ListRow>
                     ))}
-                    <ChiefComplaintAddRows key={`cc-${clearKey}`} />
+                    <ChiefComplaintAddRows
+                      key={`cc-${clearKey}`}
+                      onAdd={(text, remark) =>
+                        setSavedComplaints((p) => [...p, { id: newRowId(), text, remark }])
+                      }
+                    />
                   </div>
                 )}
 
@@ -14870,15 +14903,28 @@ export default function PrescriptionApp({ token }: { token: string }) {
                     <div data-module="history" className="rounded-[8px] bg-white [&>*:first-child]:rounded-t-[7px] [&>*:last-child]:rounded-b-[7px]" style={{ border: "1px solid #e7ebf0" }}>
                       {savedHistory.map((h, i) => (
                         <ListRow key={h.id}>
-                          <span className="text-[13px] text-[#0F100F] flex-1 min-w-0 truncate">{h.text}</span>
+                          <input
+                            value={h.text}
+                            onChange={(e) =>
+                              setSavedHistory((p) =>
+                                p.map((r) => (r.id === h.id ? { ...r, text: e.target.value } : r)),
+                              )
+                            }
+                            className="text-[13px] text-[#0F100F] flex-1 min-w-0 truncate outline-none bg-transparent"
+                          />
                           <div className="flex items-center gap-[6px] flex-1 min-w-0">
                             <div className="flex-1 min-w-0">
                               <div className="bg-white rounded-full px-[14px] h-[26px] flex items-center">
-                                {h.remark ? (
-                                  <span className="text-[12px] text-[#0F100F] truncate">{h.remark}</span>
-                                ) : (
-                                  <span className="text-[12px] text-[#8c9198]">Remark</span>
-                                )}
+                                <input
+                                  value={h.remark}
+                                  onChange={(e) =>
+                                    setSavedHistory((p) =>
+                                      p.map((r) => (r.id === h.id ? { ...r, remark: e.target.value } : r)),
+                                    )
+                                  }
+                                  placeholder="Remark"
+                                  className={`text-[12px] truncate w-full outline-none bg-transparent ${h.remark ? "text-[#0F100F]" : "text-[#8c9198]"}`}
+                                />
                               </div>
                             </div>
                             <X
@@ -14889,7 +14935,14 @@ export default function PrescriptionApp({ token }: { token: string }) {
                           </div>
                         </ListRow>
                       ))}
-                      <ChiefComplaintAddRows key={`mh-${clearKey}`} library={MEDICAL_HISTORY_LIBRARY} placeholder="Add history" />
+                      <ChiefComplaintAddRows
+                        key={`mh-${clearKey}`}
+                        library={MEDICAL_HISTORY_LIBRARY}
+                        placeholder="Add history"
+                        onAdd={(text, remark) =>
+                          setSavedHistory((p) => [...p, { id: newRowId(), text, remark }])
+                        }
+                      />
                     </div>
                     <div className="flex items-center justify-end mt-[6px]">
                       <button
