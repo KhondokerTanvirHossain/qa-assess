@@ -1524,7 +1524,9 @@ function SimpleAddRow({
 }) {
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
-  const [highlight, setHighlight] = useState(0);
+  // -1 = nothing highlighted. Enter then commits the typed text; only an
+  // explicit arrow-key choice selects a suggestion.
+  const [highlight, setHighlight] = useState(-1);
   const [showTranslated, setShowTranslated] = useState(false);
   const [focused, setFocused] = useState(false);
 
@@ -1541,7 +1543,7 @@ function SimpleAddRow({
     return c.en.toLowerCase().includes(queryLower) || c.bn.includes(queryStr);
   });
 
-  useEffect(() => { setHighlight(0); }, [text]);
+  useEffect(() => { setHighlight(-1); }, [text]);
 
   useEffect(() => {
     if (!open) return;
@@ -1592,7 +1594,7 @@ function SimpleAddRow({
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp") && text.length > 0) {
+    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp") && text.trim().length > 0) {
       setOpen(true);
       e.preventDefault();
       return;
@@ -1602,7 +1604,7 @@ function SimpleAddRow({
       setHighlight((i) => Math.min(i + 1, matches.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlight((i) => Math.max(i - 1, 0));
+      setHighlight((i) => Math.max(i - 1, -1));
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (open && matches[highlight]) commitItem(matches[highlight]);
@@ -1668,7 +1670,9 @@ function SimpleAddRow({
             onChange={(e) => {
               const v = e.target.value;
               setText(v);
-              setOpen(v.length > 0);
+              // Whitespace alone must not open the panel: with an all-space query the
+              // filter matches every entry, and Enter would commit the first one.
+              setOpen(v.trim().length > 0);
             }}
             onKeyDown={onKeyDown}
             className={`w-full ${textSizeCls} text-[#0F100F] outline-none bg-transparent ${
@@ -2109,7 +2113,9 @@ function ChiefComplaintInputRow({
   const [remarksFocused, setRemarksFocused] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [open, setOpen] = useState(false);
-  const [highlight, setHighlight] = useState(0);
+  // -1 = nothing highlighted. Enter then commits the typed text; only an
+  // explicit arrow-key choice selects a suggestion.
+  const [highlight, setHighlight] = useState(-1);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const complaintInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
@@ -2142,7 +2148,7 @@ function ChiefComplaintInputRow({
   );
 
   // Reset highlight when the search text changes
-  useEffect(() => { setHighlight(0); }, [complaint]);
+  useEffect(() => { setHighlight(-1); }, [complaint]);
 
   // Position the portal panel just below the row — width matches the FULL
   // input area (the whole row: badge + input + controls), not just the text
@@ -2187,7 +2193,7 @@ function ChiefComplaintInputRow({
   };
 
   const onComplaintKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp") && complaint.length > 0) {
+    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp") && complaint.trim().length > 0) {
       setOpen(true);
       e.preventDefault();
       return;
@@ -2197,7 +2203,7 @@ function ChiefComplaintInputRow({
       setHighlight((i) => Math.min(i + 1, matches.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlight((i) => Math.max(i - 1, 0));
+      setHighlight((i) => Math.max(i - 1, -1));
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (open && matches[highlight]) {
@@ -2253,7 +2259,9 @@ function ChiefComplaintInputRow({
               onChange={(e) => {
                 const v = e.target.value;
                 setComplaint(v);
-                setOpen(v.length > 0);
+                // Whitespace alone must not open the panel: with an all-space query the
+                // filter matches every entry, and Enter would commit the first one.
+                setOpen(v.trim().length > 0);
               }}
               onKeyDown={onComplaintKeyDown}
               onFocus={() => setInputFocused(true)}
@@ -2572,7 +2580,9 @@ function MedicalHistoryInputRow({
   const [remarks, setRemarks] = useState("");
   const [remarksFocused, setRemarksFocused] = useState(false);
   const [open, setOpen] = useState(false);
-  const [highlight, setHighlight] = useState(0);
+  // -1 = nothing highlighted. Enter then commits the typed text; only an
+  // explicit arrow-key choice selects a suggestion.
+  const [highlight, setHighlight] = useState(-1);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const historyInputRef = useRef<HTMLInputElement>(null);
@@ -2583,7 +2593,7 @@ function MedicalHistoryInputRow({
     (c) => historyItem.trim() === "" || c.toLowerCase().includes(historyItem.toLowerCase()),
   );
 
-  useEffect(() => { setHighlight(0); }, [historyItem]);
+  useEffect(() => { setHighlight(-1); }, [historyItem]);
 
   useEffect(() => {
     if (!open) return;
@@ -2622,7 +2632,7 @@ function MedicalHistoryInputRow({
   };
 
   const onHistoryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp") && historyItem.length > 0) {
+    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp") && historyItem.trim().length > 0) {
       setOpen(true);
       e.preventDefault();
       return;
@@ -2632,7 +2642,7 @@ function MedicalHistoryInputRow({
       setHighlight((i) => Math.min(i + 1, matches.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlight((i) => Math.max(i - 1, 0));
+      setHighlight((i) => Math.max(i - 1, -1));
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (open && matches[highlight]) {
@@ -2666,7 +2676,9 @@ function MedicalHistoryInputRow({
             onChange={(e) => {
               const v = e.target.value;
               setHistoryItem(v);
-              setOpen(v.length > 0);
+              // Whitespace alone must not open the panel: with an all-space query the
+              // filter matches every entry, and Enter would commit the first one.
+              setOpen(v.trim().length > 0);
             }}
             onKeyDown={onHistoryKeyDown}
             className="w-full text-[15px] text-[#0F100F] outline-none bg-transparent font-[DM_Sans]"
@@ -2966,7 +2978,9 @@ function TreatmentInputRowV2({
   const setMedicine = (v: string) => onChange({ medicine: v });
   const setTypeText = (v: string) => onChange({ typeText: v });
   const [open, setOpen] = useState(false);
-  const [highlight, setHighlight] = useState(0);
+  // -1 = nothing highlighted. Enter then commits the typed text; only an
+  // explicit arrow-key choice selects a suggestion.
+  const [highlight, setHighlight] = useState(-1);
   const [medFocused, setMedFocused] = useState(false);
   const [doseFocused, setDoseFocused] = useState(false);
 
@@ -2992,7 +3006,7 @@ function TreatmentInputRowV2({
     return m.brandName.toLowerCase().includes(q) || (m.genericName ?? "").toLowerCase().includes(q);
   });
 
-  useEffect(() => { setHighlight(0); }, [medicine]);
+  useEffect(() => { setHighlight(-1); }, [medicine]);
 
   useEffect(() => {
     if (!open) return;
@@ -3040,7 +3054,7 @@ function TreatmentInputRowV2({
   };
 
   const onMedicineKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp") && medicine.length > 0) {
+    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp") && medicine.trim().length > 0) {
       setOpen(true);
       e.preventDefault();
       return;
@@ -3050,7 +3064,7 @@ function TreatmentInputRowV2({
       setHighlight((i) => Math.min(i + 1, matches.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlight((i) => Math.max(i - 1, 0));
+      setHighlight((i) => Math.max(i - 1, -1));
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (open && matches[highlight]) pickItem(matches[highlight]);
@@ -3059,7 +3073,7 @@ function TreatmentInputRowV2({
         const picked: Partial<MedicationData> = { schema: DEFAULT_EMPTY_SCHEMA };
         onChange(picked);
         setOpen(false);
-        onPicked({ ...picked, medicine });
+        onPicked({ ...picked, medicine: medicine.trim() });
       }
     } else if (e.key === "Escape") {
       setOpen(false);
@@ -3119,7 +3133,9 @@ function TreatmentInputRowV2({
                 onChange={(e) => {
                   const v = e.target.value;
                   setMedicine(v);
-                  setOpen(v.length > 0);
+                  // Whitespace alone must not open the panel: with an all-space query the
+                  // filter matches every entry, and Enter would commit the first one.
+                  setOpen(v.trim().length > 0);
                 }}
                 onKeyDown={onMedicineKeyDown}
                 onFocus={() => setMedFocused(true)}
@@ -3502,7 +3518,9 @@ function TreatmentInputRow({
   const [duration, setDuration] = useState("");
   const [indication, setIndication] = useState("");
   const [open, setOpen] = useState(false);
-  const [highlight, setHighlight] = useState(0);
+  // -1 = nothing highlighted. Enter then commits the typed text; only an
+  // explicit arrow-key choice selects a suggestion.
+  const [highlight, setHighlight] = useState(-1);
   // Translate toggle for the Indication field — when on, the input shows a
   // fixed default sentence in the opposite language (mirrors the Advice
   // free-text translate behaviour).
@@ -3530,7 +3548,7 @@ function TreatmentInputRow({
     return m.name.toLowerCase().includes(q) || m.generic.toLowerCase().includes(q);
   });
 
-  useEffect(() => { setHighlight(0); }, [medicine]);
+  useEffect(() => { setHighlight(-1); }, [medicine]);
 
   useEffect(() => {
     if (!open) return;
@@ -3581,7 +3599,7 @@ function TreatmentInputRow({
   };
 
   const onMedicineKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp") && medicine.length > 0) {
+    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp") && medicine.trim().length > 0) {
       setOpen(true);
       e.preventDefault();
       return;
@@ -3591,7 +3609,7 @@ function TreatmentInputRow({
       setHighlight((i) => Math.min(i + 1, matches.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlight((i) => Math.max(i - 1, 0));
+      setHighlight((i) => Math.max(i - 1, -1));
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (open && matches[highlight]) {
@@ -3633,7 +3651,9 @@ function TreatmentInputRow({
                     setMedicine(v);
                     // User is changing the medicine — drop the previously linked generic
                     if (generic) setGeneric("");
-                    setOpen(v.length > 0);
+                    // Whitespace alone must not open the panel: with an all-space query the
+                    // filter matches every entry, and Enter would commit the first one.
+                    setOpen(v.trim().length > 0);
                   }}
                   onKeyDown={onMedicineKeyDown}
                   className="text-[14px] text-[#0F100F] outline-none bg-transparent font-[DM_Sans]"
